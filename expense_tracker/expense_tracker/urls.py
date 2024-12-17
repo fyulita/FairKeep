@@ -18,6 +18,7 @@ from django.contrib import admin
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from expenses.views import ExpenseViewSet
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 router = DefaultRouter()
 router.register(r'expenses', ExpenseViewSet)
@@ -25,4 +26,6 @@ router.register(r'expenses', ExpenseViewSet)
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include(router.urls)),  # This should include your API endpoints
+    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),  # Access token
+    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),  # Refresh token
 ]
