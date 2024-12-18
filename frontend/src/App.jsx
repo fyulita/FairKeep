@@ -1,5 +1,22 @@
 import { useEffect, useState } from "react";
 import api from "./api/axiosConfig";
+import './styles.css';
+
+function Navbar() {
+    return (
+      <nav style={{ backgroundColor: '#6200ee', padding: '10px' }}>
+        <h2 style={{ color: 'white', textAlign: 'center', margin: 0 }}>Expense Tracker</h2>
+      </nav>
+    );
+}
+
+function Footer() {
+  return (
+    <footer style={{ textAlign: 'center', marginTop: '20px', padding: '10px', background: '#6200ee', color: 'white' }}>
+      <p>© 2024 Expense Tracker. All rights reserved.</p>
+    </footer>
+  );
+}
 
 function App() {
     const [expenses, setExpenses] = useState([]);
@@ -18,17 +35,20 @@ function App() {
     }, []);
 
     return (
-        <div>
-            <h1>Expenses</h1>
-            <ul>
-                {expenses.map((expense) => (
-                    <li key={expense.id}>
-                        {expense.name}: ${expense.amount}
-                    </li>
-                ))}
-            </ul>
+        <div className="main-container">
+          <Navbar />
+          <h1>Expenses</h1>
+          <div className="expense-container">
+            {expenses.map((expense) => (
+              <div key={expense.id} className="expense-item">
+                <span>{expense.name}</span>
+                <span className="expense-amount">${expense.amount}</span>
+              </div>
+            ))}
+          </div>
+          <Footer />
         </div>
-    );
+      );
 }
 
 export default App;
