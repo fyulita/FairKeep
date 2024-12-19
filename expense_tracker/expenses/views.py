@@ -8,5 +8,5 @@ from .serializers import ExpenseSerializer
 class ExpenseViewSet(viewsets.ModelViewSet):
     queryset = Expense.objects.all()  # Define what data to query
     serializer_class = ExpenseSerializer  # Link the serializer
-    #permission_classes = [IsAuthenticated]  # Add this line to require authentication
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]  # Add this line to require authentication
+    #permission_classes = [AllowAny]

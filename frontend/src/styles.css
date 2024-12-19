@@ -5,50 +5,109 @@ body {
     padding: 0;
   }
   
-  h1 {
-    text-align: center;
-    margin-top: 20px;
-    color: #333;
-  }
+h1 {
+  text-align: center;
+  margin-top: 20px;
+  color: #333;
+}
 
-  .main-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 20px;
-    width: 100%;
-    box-sizing: border-box;
-  }
+.main-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.navbar {
+  background-color: #6200ee;
+  padding: 10px;
+}
+
+.navbar h2 {
+  color: white;
+  text-align: center;
+  margin: 0;
+}
+
+.footer {
+  text-align: center;
+  margin-top: 20px;
+  padding: 10px;
+  background: #6200ee;
+  color: white;
+}
   
-  .expense-container {
-    max-width: 80%;
-    margin: 20px auto;
-    padding: 20px;
-    background: #fff;
-    border-radius: 8px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  }
+.expense-container {
+  max-width: 80%;
+  margin: 20px auto;
+  padding: 20px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
   
-  .expense-item {
-    display: flex;
-    justify-content: space-between;
-    padding: 10px;
-    border-bottom: 1px solid #e0e0e0;
-    color: #333;
-  }
+.expense-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px;
+  border-bottom: 1px solid #e0e0e0;
+  color: #333;
+}
   
-  .expense-item:last-child {
-    border-bottom: none;
-  }
+.expense-item:last-child {
+  border-bottom: none;
+}
   
-  .expense-item span {
-    font-size: 16px;
-  }
+.expense-item span {
+  font-size: 16px;
+}
   
-  .expense-amount {
-    font-weight: bold;
-    color: #ff5722;
-  }
+.expense-amount {
+  font-weight: bold;
+  color: #ff5722;
+}
+
+.login-form {
+  max-width: 400px;
+  margin: 0 auto;
+  padding: 20px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+  
+.login-form div {
+  margin-bottom: 15px;
+}
+  
+.login-form label {
+  display: block;
+  margin-bottom: 5px;
+  color: #333;
+}
+  
+.login-form input {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+  
+.login-form button {
+  width: 100%;
+  padding: 10px;
+  background-color: #6200ee;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+  
+.login-form button:hover {
+  background-color: #4500b8;
+}

@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 from pathlib import Path
+from datetime import timedelta
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -153,3 +154,8 @@ LOGGING = {
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",  # Vite frontend
 ]
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),  # Adjust as needed. Default minutes=5
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),    # Adjust as needed. Default days=7
+}
