@@ -119,30 +119,32 @@ function App() {
     }
   }, []);
 
-  useEffect(() => {
-    const refreshToken = async () => {
-      try {
-        const refresh = localStorage.getItem("refreshToken");
-        if (!refresh) {
-          logout(); // No refresh token available
-          return;
-        }
-  
-        const response = await api.post("/token/refresh/", { refresh });
-        localStorage.setItem("accessToken", response.data.access);
-      } catch (error) {
-        console.error('Error refreshing token or refresh token expired:', error);
-        logout(); // Logout if refreshing fails
+  const refreshToken = async () => {
+    try {
+      const refresh = localStorage.getItem("refreshToken");
+      if (!refresh) {
+        logout(); // No refresh token available
+        return;
       }
-    };
   
-    const interval = setInterval(refreshToken, 5 * 60 * 1000); // Refresh every 5 minutes
-    return () => clearInterval(interval); // Cleanup on unmount
-  }, []);
+      const response = await api.post("/token/refresh/", { refresh });
+      localStorage.setItem("accessToken", response.data.access);
+    } catch (error) {
+      console.error("Token refresh failed:", error);
+      logout();
+    }
+  };
 
-  const logout = () => {
-    localStorage.removeItem("accessToken");
-    setIsLoggedIn(false);
+  const logout = async () => {
+    try {
+      await api.post("/logout/");
+    } catch (error) {
+      console.error("Error during logout:", error);
+    } finally {
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("refreshToken");
+      setIsLoggedIn(false); // Update the state to reflect logout
+    }
   };
 
   return isLoggedIn ? (

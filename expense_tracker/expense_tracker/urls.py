@@ -17,7 +17,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from expenses.views import ExpenseViewSet
+from expenses.views import ExpenseViewSet, logout_view
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 router = DefaultRouter()
@@ -28,4 +28,5 @@ urlpatterns = [
     path('api/', include(router.urls)),  # This should include your API endpoints
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),  # Access token
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),  # Refresh token
+    path('logout/', logout_view, name='logout'),
 ]

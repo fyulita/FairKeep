@@ -151,6 +151,7 @@ LOGGING = {
     },
 }
 
+CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",  # Vite frontend
 ]
@@ -159,3 +160,10 @@ SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),  # Adjust as needed. Default minutes=5
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),    # Adjust as needed. Default days=7
 }
+
+# Ensure cookies are secure
+SESSION_COOKIE_SECURE = False # Use HTTPS
+CSRF_COOKIE_SECURE = False    # Use HTTPS
+SESSION_COOKIE_HTTPONLY = True
+CSRF_COOKIE_HTTPONLY = False  # CSRF token is accessible to JavaScript
+CSRF_COOKIE_SAMESITE = 'Strict'

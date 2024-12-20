@@ -2,6 +2,7 @@ import axios from "axios";
 
 const api = axios.create({
   baseURL: "http://127.0.0.1:8000/api", // Your Django API base URL
+  withCredentials: true, // Send cookies
 });
 
 // Function to refresh the access token
