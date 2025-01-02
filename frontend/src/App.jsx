@@ -68,19 +68,89 @@ function Login({ setIsLoggedIn }) {
   );
 }
 
+function AddExpenseForm({ onAddExpense }) {
+  const [name, setName] = useState("");
+  const [category, setCategory] = useState("");
+  const [amount, setAmount] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await api.post("expenses/", { name, category, amount: parseFloat(amount) });
+      setSuccessMessage("Expense added!");
+      setTimeout(() => setSuccessMessage(""), 3000); // Clear message after 3 seconds
+      onAddExpense(); // Refresh expense list
+      setName(""); // Reset form fields
+      setCategory("");
+      setAmount("");
+    } catch (error) {
+      console.error("Error adding expense:", error);
+    }
+  };
+
+  return (
+    <div className="expense-form-container">
+      <h2>Add New Expense</h2>
+      {successMessage && <p className="success-message">{successMessage}</p>}
+      <form onSubmit={handleSubmit} className="expense-form">
+        <div>
+          <label htmlFor="name">Name:</label>
+          <input
+            type="text"
+            id="name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+          />
+        </div>
+        <div>
+          <label htmlFor="category">Category:</label>
+          <select
+            id="category"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            required
+          >
+            <option value="">Select a category</option>
+            <option value="Home Supplies">Home Supplies</option>
+            <option value="Food">Food</option>
+            <option value="Transport">Transport</option>
+            <option value="Entertainment">Entertainment</option>
+            <option value="Periodic Expenses">Periodic Expenses</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div>
+          <label htmlFor="amount">Amount:</label>
+          <input
+            type="number"
+            step="0.01"
+            id="amount"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            required
+          />
+        </div>
+        <button type="submit">Add Expense</button>
+      </form>
+    </div>
+  );
+}
+
 function Expenses({ logout }) {
   const [expenses, setExpenses] = useState([]);
 
-  useEffect(() => {
-    const fetchExpenses = async () => {
-      try {
-        const response = await api.get("expenses/");
-        setExpenses(response.data);
-      } catch (error) {
-        console.error("Error fetching expenses:", error);
-      }
-    };
+  const fetchExpenses = async () => {
+    try {
+      const response = await api.get("expenses/");
+      setExpenses(response.data);
+    } catch (error) {
+      console.error("Error fetching expenses:", error);
+    }
+  };
 
+  useEffect(() => {
     fetchExpenses();
   }, []);
 
@@ -90,6 +160,7 @@ function Expenses({ logout }) {
       <button onClick={logout} style={{ marginTop: "10px" }}>
         Logout
       </button>
+      <AddExpenseForm onAddExpense={fetchExpenses} />
       <h1>Expenses</h1>
       <div className="expense-container">
         {expenses.map((expense) => (

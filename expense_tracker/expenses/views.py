@@ -13,7 +13,7 @@ from .models import Expense
 from .serializers import ExpenseSerializer
 
 class ExpenseViewSet(viewsets.ModelViewSet):
-    queryset = Expense.objects.all()  # Define what data to query
+    queryset = Expense.objects.all().order_by('-date')  # Define what data to query
     serializer_class = ExpenseSerializer  # Link the serializer
     permission_classes = [IsAuthenticated]  # Add this line to require authentication
 
