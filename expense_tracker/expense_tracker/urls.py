@@ -17,16 +17,16 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from expenses.views import ExpenseViewSet, logout_view
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from expenses.views import ExpenseViewSet, login_view, logout_view, csrf_token_view, check_session_view
 
 router = DefaultRouter()
 router.register(r'expenses', ExpenseViewSet)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/', include(router.urls)),  # This should include your API endpoints
-    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),  # Access token
-    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),  # Refresh token
-    path('logout/', logout_view, name='logout'),
+    path('api/', include(router.urls)),  # API endpoints
+    path('api/login/', login_view, name='login'),  # Login endpoint
+    path('api/logout/', logout_view, name='logout'),  # Logout endpoint
+    path('api/csrf/', csrf_token_view, name='csrf_token'),
+    path('api/check-session/', check_session_view, name='check_session'),
 ]

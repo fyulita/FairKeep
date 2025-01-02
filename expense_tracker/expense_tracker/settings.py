@@ -40,7 +40,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'corsheaders',
     'rest_framework',
-    'rest_framework_simplejwt',
+    'django_extensions',
     'expenses',
 ]
 
@@ -130,7 +130,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
@@ -151,19 +151,20 @@ LOGGING = {
     },
 }
 
-CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",  # Vite frontend
+# Enable cross-site cookies
+CSRF_COOKIE_SECURE = True 
+CSRF_COOKIE_SAMESITE = 'None'  # Allows cross-site usage
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:5173",   # HTTP
+    "https://localhost:5173",  # HTTPS
 ]
 
-SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),  # Adjust as needed. Default minutes=5
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),    # Adjust as needed. Default days=7
-}
+SESSION_COOKIE_SECURE = True
+SESSION_COOKIE_SAMESITE = 'None'
 
-# Ensure cookies are secure
-SESSION_COOKIE_SECURE = False # Use HTTPS
-CSRF_COOKIE_SECURE = False    # Use HTTPS
-SESSION_COOKIE_HTTPONLY = True
-CSRF_COOKIE_HTTPONLY = False  # CSRF token is accessible to JavaScript
-CSRF_COOKIE_SAMESITE = 'Strict'
+# Ensure CORS settings allow credentials
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",  # HTTP for local development
+    "https://localhost:5173", # HTTPS for secure local development
+]

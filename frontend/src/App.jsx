@@ -13,7 +13,7 @@ function Navbar() {
 function Footer() {
   return (
     <footer className="footer">
-      <p>© 2024 Expense Tracker. All rights reserved.</p>
+      <p>© 2025 Expense Tracker. All rights reserved.</p>
     </footer>
   );
 }
@@ -26,15 +26,13 @@ function Login({ setIsLoggedIn }) {
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
-      const response = await api.post("/token/", { username, password });
-      const { access, refresh } = response.data;
-  
-      // Save the tokens
-      localStorage.setItem("accessToken", access);
-      localStorage.setItem("refreshToken", refresh);
-  
-      setIsLoggedIn(true); // Update login state
+      // Fetch CSRF token
+      await api.get("csrf/");
+
+      const response = await api.post("login/", { username, password });
+      if (response.status === 200) setIsLoggedIn(true);
     } catch (error) {
+      console.error("Login Failed: ", error);
       setError("Invalid username or password");
     }
   };
@@ -76,10 +74,7 @@ function Expenses({ logout }) {
   useEffect(() => {
     const fetchExpenses = async () => {
       try {
-        const token = localStorage.getItem("accessToken");
-        const response = await api.get("/expenses/", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const response = await api.get("expenses/");
         setExpenses(response.data);
       } catch (error) {
         console.error("Error fetching expenses:", error);
@@ -112,38 +107,28 @@ function Expenses({ logout }) {
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
+  // Check session on page load
   useEffect(() => {
-    const token = localStorage.getItem("accessToken");
-    if (token) {
-      setIsLoggedIn(true);
-    }
-  }, []);
-
-  const refreshToken = async () => {
-    try {
-      const refresh = localStorage.getItem("refreshToken");
-      if (!refresh) {
-        logout(); // No refresh token available
-        return;
+    const checkSession = async () => {
+      try {
+        const response = await api.get("check-session/");
+        if (response.data.authenticated) {
+          setIsLoggedIn(true);
+        }
+      } catch (error) {
+        console.log("Session expired or not logged in");
+        setIsLoggedIn(false);
       }
-  
-      const response = await api.post("/token/refresh/", { refresh });
-      localStorage.setItem("accessToken", response.data.access);
-    } catch (error) {
-      console.error("Token refresh failed:", error);
-      logout();
-    }
-  };
+    };
+    checkSession();
+  }, []);
 
   const logout = async () => {
     try {
-      await api.post("/logout/");
+      await api.post("logout/", {});
+      setIsLoggedIn(false);
     } catch (error) {
       console.error("Error during logout:", error);
-    } finally {
-      localStorage.removeItem("accessToken");
-      localStorage.removeItem("refreshToken");
-      setIsLoggedIn(false); // Update the state to reflect logout
     }
   };
 
