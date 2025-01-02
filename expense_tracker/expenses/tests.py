@@ -56,3 +56,13 @@ class AuthTests(TestCase):
             content_type='application/json'
         )
         self.assertEqual(response.status_code, 403)  # Forbidden
+
+    def test_create_expense(self):
+        self.client.login(username='testuser', password='testpass')
+        response = self.client.post(
+            '/api/expenses/',
+            {'name': 'Test Expense', 'amount': 100, 'category': 'Food'},
+            HTTP_X_CSRFTOKEN=self.csrf_token,
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 201)

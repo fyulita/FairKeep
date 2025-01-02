@@ -111,3 +111,12 @@ h1 {
 .login-form button:hover {
   background-color: #4500b8;
 }
+
+@media (max-width: 768px) {
+  .main-container {
+      padding: 10px;
+  }
+  .expense-container, .login-form {
+      max-width: 100%;
+  }
+}

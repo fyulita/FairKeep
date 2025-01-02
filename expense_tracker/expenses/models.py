@@ -19,4 +19,8 @@ class Expense(models.Model):
     date = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.name} - {self.amount}"
+        return f"{self.user.username} - {self.name} - {self.amount}"
+
+    def clean(self):
+        if self.amount < 0:
+            raise ValidationError('Amount must be non-negative.')

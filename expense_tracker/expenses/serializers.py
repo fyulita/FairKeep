@@ -4,4 +4,4 @@ from .models import Expense
 class ExpenseSerializer(serializers.ModelSerializer):
     class Meta:
         model = Expense
-        fields = '__all__'  # Include all fields from the model
+        fields = ['id', 'name', 'amount', 'category', 'date']  # Include all fields from the model

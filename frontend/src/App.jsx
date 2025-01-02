@@ -106,6 +106,7 @@ function Expenses({ logout }) {
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   // Check session on page load
   useEffect(() => {
@@ -118,6 +119,8 @@ function App() {
       } catch (error) {
         console.log("Session expired or not logged in");
         setIsLoggedIn(false);
+      } finally {
+        setLoading(false);
       }
     };
     checkSession();
@@ -131,6 +134,8 @@ function App() {
       console.error("Error during logout:", error);
     }
   };
+
+  if (loading) return <div>Loading...</div>;
 
   return isLoggedIn ? (
     <Expenses logout={logout} />
