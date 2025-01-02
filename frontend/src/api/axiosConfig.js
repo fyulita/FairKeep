@@ -3,6 +3,9 @@ import axios from "axios";
 const api = axios.create({
   baseURL: "https://localhost:8000/api/", // Your Django API base URL
   withCredentials: true,                // Enable sending cookies
+  headers: {
+    "Content-Type": "application/json",
+  },
 });
 
 // Add a request interceptor to include the CSRF token
