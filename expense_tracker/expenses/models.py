@@ -12,19 +12,27 @@ class Expense(models.Model):
         ('Other', 'Other'),
     ]
 
+    SPLIT_METHODS = [
+        ('equal', 'Split Equally'),
+        ('manual', 'Manual Amount Entry'),
+        ('percentage', 'Percentage-Based'),
+        ('ratio', 'Ratio-Based'),
+        ('shares', 'Shares-Based'),
+        ('excess', 'Excess Adjustment'),
+    ]
+
     name = models.CharField(max_length=50)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     category = models.CharField(max_length=20, choices=CATEGORY_CHOICES)
     date = models.DateTimeField(auto_now_add=True)
-    added_by = models.ForeignKey(User, related_name='added_expenses', on_delete=models.CASCADE)
+    added_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='added_expenses')
     participants = models.ManyToManyField(User, through='ExpenseSplit', related_name='shared_expenses')
+    paid_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='paid_expenses')
+    split_method = models.CharField(max_length=50, choices=SPLIT_METHODS)
+    split_details = models.JSONField(null=True, blank=True)
 
     def __str__(self):
         return f"{self.name} - {self.amount}"
-
-    def clean(self):
-        if self.amount < 0:
-            raise ValidationError('Amount must be non-negative.')
 
 class ExpenseSplit(models.Model):
     expense = models.ForeignKey(Expense, on_delete=models.CASCADE)

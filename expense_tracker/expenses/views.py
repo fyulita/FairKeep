@@ -15,30 +15,62 @@ from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 from .models import Expense, ExpenseSplit
 from .serializers import ExpenseSerializer
 
+import logging
+logger = logging.getLogger(__name__)
+
 class ExpenseViewSet(viewsets.ModelViewSet):
     queryset = Expense.objects.all().order_by('-date')
     serializer_class = ExpenseSerializer
 
     def perform_create(self, serializer):
-        data = self.request.data
-        
-        print("Received data:", data)  # Debug log
-        serializer.save(added_by=self.request.user)
+        logger.debug(f"Incoming data: {self.request.data}")
 
+        data = self.request.data
+        print("Incoming Data:", data)  # Debugging
         splits_data = data.get('splits', [])
+        print("Splits Data:", splits_data)  # Debugging
+        participants = data.get('participants', [])
+        print("Participants:", participants)  # Debugging
+        split_method = data.get('split_method')
+        print("Split Method:", split_method)  # Debugging
+        total_amount = float(data['amount'])
+        print("Total Amount:", total_amount)  # Debugging
+
+        # Validate splits based on the selected method
+        if split_method == 'manual':
+            total_owed = sum(float(split['owed_amount']) for split in splits_data)
+            if total_owed != total_amount:
+                raise ValidationError("The total owed amounts must equal the expense amount.")
+
+        elif split_method == 'percentage':
+            total_percentage = sum(float(split['value']) for split in splits_data)
+            if total_percentage != 100:
+                raise ValidationError("The total percentages must equal 100%.")
+
+        elif split_method == 'equal':
+            if len(splits_data) != len(participants):
+                raise ValidationError("Participants count must match splits count for equal split.")
+            for split in splits_data:
+                split['owed_amount'] = total_amount / len(participants)
+
+        elif split_method == 'shares':
+            total_shares = sum(split['value'] for split in splits_data)
+            for split in splits_data:
+                split['owed_amount'] = (split['value'] / total_shares) * total_amount
+
+        elif split_method == 'excess':
+            base_amount = total_amount / len(participants)
+            for split in splits_data:
+                split['owed_amount'] = base_amount + split.get('value', 0)
+
         with transaction.atomic():
             expense = serializer.save(added_by=self.request.user)
-            total_paid = sum(float(split['paid_amount']) for split in splits_data)
-            if total_paid != expense.amount:
-                raise ValidationError({"amount": "Total paid must equal the expense amount."})
-
             for split in splits_data:
-                user = User.objects.get(id=split['user'])
                 ExpenseSplit.objects.create(
                     expense=expense,
-                    user=user,
-                    paid_amount=float(split['paid_amount']),
-                    owed_amount=float(split['owed_amount'])
+                    user=User.objects.get(id=split['user']),
+                    paid_amount=split.get('paid_amount', 0),
+                    owed_amount=split.get('owed_amount', 0),
                 )
 
 @login_required
@@ -78,7 +110,7 @@ def csrf_token_view(request):
 
 @login_required
 def check_session_view(request):
-    return JsonResponse({"authenticated": True}, status=200)
+    return JsonResponse({"authenticated": True, "id": request.user.id, "username": request.user.username}, status=200)
 
 @csrf_protect
 def login_view(request):
