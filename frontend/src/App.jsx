@@ -8,6 +8,7 @@ import UserList from "./components/UserList";
 import UserExpenses from "./components/UserExpenses";
 import ExpenseDetail from "./components/ExpenseDetail";
 import EditExpense from "./components/EditExpense";
+import Activities from "./components/Activities";
 import AddExpenseForm from "./components/AddExpenseForm";
 import Footer from "./components/Footer";
 import './styles.css';
@@ -75,6 +76,7 @@ function App() {
                                 <div className="page-actions">
                                     <Link className="primary-button" to="/add-expense">Add Expense</Link>
                                     <Link className="secondary-button" to="/expenses">All My Expenses</Link>
+                                    <Link className="secondary-button" to="/activities">Activities</Link>
                                 </div>
                                 <UserList currentUserId={currentUser?.id} refreshKey={expensesVersion} />
                             </>
@@ -126,6 +128,10 @@ function App() {
                     element={
                         <EditExpense onDone={() => navigate(-1)} />
                     }
+                />
+                <Route
+                    path="/activities"
+                    element={<Activities />}
                 />
                 <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

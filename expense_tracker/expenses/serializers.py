@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import Expense, ExpenseSplit
 from django.contrib.auth.models import User
+from .models import Activity
 
 
 class ExpenseSplitSerializer(serializers.ModelSerializer):
@@ -36,8 +37,9 @@ class ExpenseSerializer(serializers.ModelSerializer):
             'paid_by_username',
             'paid_by_display',
             'splits',
-            'split_method',
-        ]
+        'split_method',
+        'updated_at',
+    ]
 
     def get_added_by_display(self, obj):
         full = obj.added_by.get_full_name()
@@ -62,3 +64,27 @@ class ExpenseSerializer(serializers.ModelSerializer):
             setattr(instance, attr, value)
         instance.save()
         return instance
+
+
+class ActivitySerializer(serializers.ModelSerializer):
+    actor_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Activity
+        fields = [
+            'id',
+            'action',
+            'created_at',
+            'expense',
+            'expense_name',
+            'expense_amount',
+            'split_method',
+            'expense_date',
+            'actor_name',
+        ]
+
+    def get_actor_name(self, obj):
+        if obj.actor:
+            full = obj.actor.get_full_name()
+            return full if full else obj.actor.username
+        return "Unknown"

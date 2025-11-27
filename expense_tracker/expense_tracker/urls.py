@@ -17,7 +17,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from expenses.views import ExpenseViewSet, login_view, logout_view, csrf_token_view, check_session_view, balances, user_list
+from expenses.views import ExpenseViewSet, login_view, logout_view, csrf_token_view, check_session_view, balances, user_list, activities
 
 router = DefaultRouter()
 router.register(r'expenses', ExpenseViewSet)
@@ -31,4 +31,5 @@ urlpatterns = [
     path('api/check-session/', check_session_view, name='check_session'),
     path('api/balances/', balances, name='balances'),
     path('api/users/', user_list, name='user_list'),
+    path('api/activities/', activities, name='activities'),
 ]

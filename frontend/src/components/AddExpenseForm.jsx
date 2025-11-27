@@ -285,100 +285,102 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
     }
 
     return (
-        <form className="expense-form" onSubmit={handleSubmit}>
-            <h2>Add New Expense</h2>
-            <div>
-                <label>Expense Name</label>
-                <input type="text" value={name} onChange={(e) => setName(e.target.value)} required />
-            </div>
-            <div>
-                <label>Category</label>
-                <select value={category} onChange={(e) => setCategory(e.target.value)} required>
-                    <option value="">Select Category</option>
-                    <option value="Home Supplies">Home Supplies</option>
-                    <option value="Food">Food</option>
-                    <option value="Transport">Transport</option>
-                    <option value="Entertainment">Entertainment</option>
-                    <option value="Periodic Expenses">Periodic Expenses</option>
-                    <option value="Other">Other</option>
-                </select>
-            </div>
-            <div>
-                <label>Amount</label>
-                <input
-                    type="number"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    required
-                />
-            </div>
-            <div>
-                <label>Expense Date</label>
-                <input
-                    type="date"
-                    value={expenseDate}
-                    onChange={(e) => setExpenseDate(e.target.value)}
-                    required
-                />
-            </div>
-            <div>
-                <label>Participants</label>
-                <select
-                    multiple
-                    value={participants}
-                    onChange={(e) =>
-                        setParticipants([...e.target.selectedOptions].map((option) => parseInt(option.value)))
-                    }
-                >
-                    {users
-                        .filter((user) => user.id !== loggedUser?.id)
-                        .map((user) => (
-                            <option key={user.id} value={user.id}>
-                                {user.username}
-                            </option>
-                        ))}
-                </select>
-            </div>
-            <div>
-                <label>Paid By</label>
-                <select value={paidBy} onChange={(e) => setPaidBy(e.target.value)} required>
-                    <option value="">Select Payer</option>
-                    {[loggedUser, ...users.filter((user) => participants.includes(user.id))]
-                        .filter(Boolean)
-                        .map((user) => (
-                            <option key={user.id} value={user.id}>
-                                {user.username}
-                            </option>
-                        ))}
-                </select>
-            </div>
-            <div>
-                <label>Splitting Method</label>
-                <select value={splitMethod} onChange={(e) => setSplitMethod(e.target.value)} required>
-                    <option value="">Select Splitting Method</option>
-                    <option value="equal">Split Equally</option>
-                    <option value="manual">Manual Amount Entry</option>
-                    <option value="percentage">Percentage</option>
-                    <option value="shares">Shares</option>
-                    <option value="excess">Excess Adjustment</option>
-                    {participants.length === 1 && (
-                        <>
-                            <option value="full_owed">You are owed the full amount</option>
-                            <option value="full_owe">You owe the full amount</option>
-                        </>
+        <div className="form-card">
+            <form className="expense-form" onSubmit={handleSubmit}>
+                <h2>Add New Expense</h2>
+                <div>
+                    <label>Expense Name</label>
+                    <input type="text" value={name} onChange={(e) => setName(e.target.value)} required />
+                </div>
+                <div>
+                    <label>Category</label>
+                    <select value={category} onChange={(e) => setCategory(e.target.value)} required>
+                        <option value="">Select Category</option>
+                        <option value="Home Supplies">Home Supplies</option>
+                        <option value="Food">Food</option>
+                        <option value="Transport">Transport</option>
+                        <option value="Entertainment">Entertainment</option>
+                        <option value="Periodic Expenses">Periodic Expenses</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Amount</label>
+                    <input
+                        type="number"
+                        value={amount}
+                        onChange={(e) => setAmount(e.target.value)}
+                        required
+                    />
+                </div>
+                <div>
+                    <label>Expense Date</label>
+                    <input
+                        type="date"
+                        value={expenseDate}
+                        onChange={(e) => setExpenseDate(e.target.value)}
+                        required
+                    />
+                </div>
+                <div>
+                    <label>Participants</label>
+                    <select
+                        multiple
+                        value={participants}
+                        onChange={(e) =>
+                            setParticipants([...e.target.selectedOptions].map((option) => parseInt(option.value)))
+                        }
+                    >
+                        {users
+                            .filter((user) => user.id !== loggedUser?.id)
+                            .map((user) => (
+                                <option key={user.id} value={user.id}>
+                                    {user.username}
+                                </option>
+                            ))}
+                    </select>
+                </div>
+                <div>
+                    <label>Paid By</label>
+                    <select value={paidBy} onChange={(e) => setPaidBy(e.target.value)} required>
+                        <option value="">Select Payer</option>
+                        {[loggedUser, ...users.filter((user) => participants.includes(user.id))]
+                            .filter(Boolean)
+                            .map((user) => (
+                                <option key={user.id} value={user.id}>
+                                    {user.username}
+                                </option>
+                            ))}
+                    </select>
+                </div>
+                <div>
+                    <label>Splitting Method</label>
+                    <select value={splitMethod} onChange={(e) => setSplitMethod(e.target.value)} required>
+                        <option value="">Select Splitting Method</option>
+                        <option value="equal">Split Equally</option>
+                        <option value="manual">Manual Amount Entry</option>
+                        <option value="percentage">Percentage</option>
+                        <option value="shares">Shares</option>
+                        <option value="excess">Excess Adjustment</option>
+                        {participants.length === 1 && (
+                            <>
+                                <option value="full_owed">You are owed the full amount</option>
+                                <option value="full_owe">You owe the full amount</option>
+                            </>
+                        )}
+                    </select>
+                </div>
+                {splitMethod && <div>{renderSplitDetails()}</div>}
+                <div className="form-actions">
+                    <button type="submit">Add Expense</button>
+                    {onCancel && (
+                        <button type="button" className="secondary-button" onClick={onCancel}>
+                            Cancel
+                        </button>
                     )}
-                </select>
-            </div>
-            {splitMethod && <div>{renderSplitDetails()}</div>}
-            <div className="form-actions">
-                <button type="submit">Add Expense</button>
-                {onCancel && (
-                    <button type="button" className="secondary-button" onClick={onCancel}>
-                        Cancel
-                    </button>
-                )}
-            </div>
-        </form>
+                </div>
+            </form>
+        </div>
     );
 };
 

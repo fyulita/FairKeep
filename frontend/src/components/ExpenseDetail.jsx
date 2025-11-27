@@ -9,6 +9,7 @@ function ExpenseDetail({ currentUserId }) {
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+    const [deleting, setDeleting] = useState(false);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -68,6 +69,25 @@ function ExpenseDetail({ currentUserId }) {
             <div className="page-actions">
                 <button className="secondary-button" onClick={() => navigate(-1)}>Back</button>
                 <Link className="primary-button" to={`/expenses/${expense.id}/edit`}>Edit</Link>
+                <button
+                    className="danger-button"
+                    disabled={deleting}
+                    onClick={async () => {
+                        const ok = window.confirm("Delete this expense?");
+                        if (!ok) return;
+                        try {
+                            setDeleting(true);
+                            await api.delete(`/expenses/${expense.id}/`);
+                            navigate("/");
+                        } catch (err) {
+                            console.error("Error deleting expense", err);
+                            setDeleting(false);
+                            setError("Failed to delete expense");
+                        }
+                    }}
+                >
+                    {deleting ? "Deleting..." : "Delete Expense"}
+                </button>
                 <Link className="secondary-button" to="/add-expense">Add Expense</Link>
             </div>
             <h2>{expense.name}</h2>

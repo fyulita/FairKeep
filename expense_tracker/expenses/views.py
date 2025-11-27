@@ -13,11 +13,32 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.exceptions import ValidationError
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
-from .models import Expense, ExpenseSplit
-from .serializers import ExpenseSerializer
+from .models import Expense, ExpenseSplit, Activity
+from .serializers import ExpenseSerializer, ActivitySerializer
 
 import logging
 logger = logging.getLogger(__name__)
+
+def _log_activity(action, expense, actor, splits_data, participants_ids, payer_id):
+    try:
+        activity = Activity.objects.create(
+            expense=expense if action != 'deleted' else None,
+            actor=actor,
+            action=action,
+            expense_name=expense.name,
+            expense_amount=expense.amount,
+            split_method=expense.split_method,
+            expense_date=expense.expense_date,
+            participants_snapshot=[int(p) for p in participants_ids],
+        )
+        involved = set(participants_ids)
+        involved.add(payer_id)
+        involved.add(expense.added_by_id)
+        for split in splits_data:
+            involved.add(int(split['user']))
+        activity.involved_users.set(User.objects.filter(id__in=involved))
+    except Exception as e:
+        logger.error(f"Failed to log activity: {e}")
 
 class ExpenseViewSet(viewsets.ModelViewSet):
     queryset = Expense.objects.all().order_by('-date')
@@ -103,6 +124,7 @@ class ExpenseViewSet(viewsets.ModelViewSet):
                     paid_amount=Decimal(str(split.get('paid_amount', 0))),
                     owed_amount=Decimal(str(split.get('owed_amount', 0))),
                 )
+            _log_activity('created', expense, self.request.user, splits_data, participants, payer_id)
 
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
@@ -169,8 +191,23 @@ class ExpenseViewSet(viewsets.ModelViewSet):
                     paid_amount=Decimal(str(split.get('paid_amount', 0))),
                     owed_amount=Decimal(str(split.get('owed_amount', 0))),
                 )
+            _log_activity('updated', instance, request.user, splits_data, participants, payer_id)
 
         return Response(serializer.data)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        splits = list(instance.expensesplit_set.all())
+        participants_ids = [s.user_id for s in splits]
+        payer_id = instance.paid_by_id
+        splits_data = [
+            {"user": s.user_id, "paid_amount": s.paid_amount, "owed_amount": s.owed_amount, "value": 0}
+            for s in splits
+        ]
+        with transaction.atomic():
+            response = super().destroy(request, *args, **kwargs)
+            _log_activity('deleted', instance, request.user, splits_data, participants_ids, payer_id)
+        return response
 
 @login_required
 def calculate_balances(request):
@@ -259,6 +296,14 @@ def user_list(request):
         "display_name": user.get_full_name() or user.username,
     } for user in users]
     return Response(user_data)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def activities(request):
+    user = request.user
+    qs = Activity.objects.filter(involved_users=user).order_by('-created_at')[:100]
+    serializer = ActivitySerializer(qs, many=True)
+    return Response(serializer.data)
 
 @ensure_csrf_cookie
 def csrf_token_view(request):
