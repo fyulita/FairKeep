@@ -20,6 +20,8 @@ class Expense(models.Model):
         ('ratio', 'Ratio-Based'),
         ('shares', 'Shares-Based'),
         ('excess', 'Excess Adjustment'),
+        ('full_owed', 'You are owed full amount'),
+        ('full_owe', 'You owe full amount'),
     ]
 
     name = models.CharField(max_length=50)

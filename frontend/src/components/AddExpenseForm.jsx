@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import api from "../api/axiosConfig";
 
-const AddExpenseForm = ({ onSuccess, onCancel }) => {
+const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = null }) => {
     const [name, setName] = useState("");
     const [category, setCategory] = useState("");
     const [amount, setAmount] = useState("");
@@ -71,6 +71,30 @@ const AddExpenseForm = ({ onSuccess, onCancel }) => {
         resetSplitDetails();
     }, [participants, loggedUser, splitMethod]);
 
+    // Prefill when editing
+    useEffect(() => {
+        if (!expenseId || !initialData || !loggedUser) return;
+
+        setName(initialData.name || "");
+        setCategory(initialData.category || "");
+        setAmount(initialData.amount || "");
+        setExpenseDate(initialData.expense_date || new Date().toISOString().split("T")[0]);
+        setPaidBy(initialData.paid_by || "");
+        setSplitMethod(initialData.split_method || "");
+
+        // participants: remove logged user from the selectable list (since we always include logged user)
+        const others = (initialData.participants || []).filter((id) => id !== loggedUser.id);
+        setParticipants(others);
+
+        if (initialData.splits) {
+            const mapped = initialData.splits.map((s) => ({
+                id: s.user,
+                value: s.value ?? (parseFloat(s.owed_amount) || 0),
+            }));
+            setSplitDetails(mapped);
+        }
+    }, [expenseId, initialData, loggedUser]);
+
     const validateSplitDetails = () => {
         const sum = splitDetails.reduce((acc, detail) => acc + (detail.value || 0), 0);
         if (splitMethod === "manual" && sum > parseFloat(amount)) {
@@ -136,27 +160,49 @@ const AddExpenseForm = ({ onSuccess, onCancel }) => {
 
         const allParticipants = [loggedUser?.id, ...participants].filter(Boolean);
         const uniqueParticipants = Array.from(new Set(allParticipants));
+        const amountNumber = parseFloat(amount) || 0;
     
+        let payloadSplits = splitDetails.map((split) => ({
+            user: split.id, // Ensure the ID matches the backend
+            value: split.value, // Needed for percentage/shares calculations in backend
+            owed_amount: split.value.toFixed(2), // Consistency in decimal points
+            paid_amount: split.id === parseInt(paidBy, 10) ? parseFloat(amount).toFixed(2) : "0.00",
+        }));
+        let paidByOverride = null;
+
+        if (splitMethod === "full_owed" && uniqueParticipants.length === 2) {
+            const otherId = uniqueParticipants.find((id) => id !== loggedUser?.id);
+            payloadSplits = [
+                { user: loggedUser.id, value: 0, owed_amount: "0.00", paid_amount: amountNumber.toFixed(2) },
+                { user: otherId, value: 0, owed_amount: amountNumber.toFixed(2), paid_amount: "0.00" },
+            ];
+            paidByOverride = loggedUser.id;
+        } else if (splitMethod === "full_owe" && uniqueParticipants.length === 2) {
+            const otherId = uniqueParticipants.find((id) => id !== loggedUser?.id);
+            payloadSplits = [
+                { user: loggedUser.id, value: 0, owed_amount: amountNumber.toFixed(2), paid_amount: "0.00" },
+                { user: otherId, value: 0, owed_amount: "0.00", paid_amount: amountNumber.toFixed(2) },
+            ];
+            paidByOverride = otherId;
+        }
+
         const payload = {
             name,
             category,
             amount: parseFloat(amount).toFixed(2), // Ensure proper formatting
             expense_date: expenseDate,
-            paid_by: parseInt(paidBy, 10),
+            paid_by: paidByOverride !== null ? paidByOverride : parseInt(paidBy, 10),
             split_method: splitMethod,
             participants: uniqueParticipants,
-            splits: splitDetails.map((split) => ({
-                user: split.id, // Ensure the ID matches the backend
-                value: split.value, // Needed for percentage/shares calculations in backend
-                owed_amount: split.value.toFixed(2), // Consistency in decimal points
-                paid_amount: split.id === parseInt(paidBy, 10) ? parseFloat(amount).toFixed(2) : "0.00",
-            })),
+            splits: payloadSplits,
         };
     
         console.log("Payload:", payload);
     
         try {
-            const response = await api.post("/expenses/", payload);
+            const response = expenseId
+                ? await api.put(`/expenses/${expenseId}/`, payload)
+                : await api.post("/expenses/", payload);
             console.log("Expense added successfully:", response.data);
             if (onSuccess) {
                 onSuccess();
@@ -177,9 +223,14 @@ const AddExpenseForm = ({ onSuccess, onCancel }) => {
             percentage: "Specify the percentage each participant pays.",
             shares: "Allocate shares to divide the total proportionally.",
             excess: "Adjust the total with specified excess contributions.",
+            full_owed: "You cover the full amount; the other person owes you 100%.",
+            full_owe: "The other person covers the full amount; you owe 100%.",
         };
 
         if (splitMethod === "equal") {
+            return <p>{descriptions[splitMethod]}</p>;
+        }
+        if (splitMethod === "full_owed" || splitMethod === "full_owe") {
             return <p>{descriptions[splitMethod]}</p>;
         }
     
@@ -310,6 +361,12 @@ const AddExpenseForm = ({ onSuccess, onCancel }) => {
                     <option value="percentage">Percentage</option>
                     <option value="shares">Shares</option>
                     <option value="excess">Excess Adjustment</option>
+                    {participants.length === 1 && (
+                        <>
+                            <option value="full_owed">You are owed the full amount</option>
+                            <option value="full_owe">You owe the full amount</option>
+                        </>
+                    )}
                 </select>
             </div>
             {splitMethod && <div>{renderSplitDetails()}</div>}

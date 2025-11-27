@@ -63,6 +63,10 @@ class ExpenseViewSet(viewsets.ModelViewSet):
             total_owed = sum(Decimal(str(split['owed_amount'])) for split in splits_data)
             if total_owed != total_amount:
                 raise ValidationError("The total owed amounts must equal the expense amount.")
+        elif split_method in ['full_owed', 'full_owe']:
+            total_owed = sum(Decimal(str(split['owed_amount'])) for split in splits_data)
+            if total_owed != total_amount:
+                raise ValidationError("The total owed amounts must equal the expense amount.")
 
         elif split_method == 'percentage':
             total_percentage = sum(Decimal(str(split['value'])) for split in splits_data)
@@ -92,12 +96,6 @@ class ExpenseViewSet(viewsets.ModelViewSet):
 
         with transaction.atomic():
             expense = serializer.save(added_by=self.request.user)
-            # Ensure participants include payer and all split users
-            unique_participants = set(participants)
-            unique_participants.add(payer_id)
-            for split in splits_data:
-                unique_participants.add(int(split['user']))
-            expense.participants.set(unique_participants)
             for split in splits_data:
                 ExpenseSplit.objects.create(
                     expense=expense,
@@ -105,6 +103,74 @@ class ExpenseViewSet(viewsets.ModelViewSet):
                     paid_amount=Decimal(str(split.get('paid_amount', 0))),
                     owed_amount=Decimal(str(split.get('owed_amount', 0))),
                 )
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+
+        data = serializer.validated_data
+        splits_data = list(request.data.get('splits', []))
+        participants = request.data.get('participants', [])
+        split_method = request.data.get('split_method')
+        total_amount = Decimal(str(request.data.get('amount')))
+        payer_id = int(request.data.get('paid_by'))
+
+        normalized = {}
+        for split in splits_data:
+            uid = int(split['user'])
+            entry = normalized.get(uid, {"user": uid, "paid_amount": Decimal('0'), "owed_amount": Decimal('0'), "value": Decimal('0')})
+            entry["paid_amount"] += Decimal(str(split.get('paid_amount', 0)))
+            entry["owed_amount"] += Decimal(str(split.get('owed_amount', 0)))
+            entry["value"] += Decimal(str(split.get('value', 0)))
+            normalized[uid] = entry
+        splits_data = list(normalized.values())
+
+        if split_method == 'manual':
+            total_owed = sum(Decimal(str(split['owed_amount'])) for split in splits_data)
+            if total_owed != total_amount:
+                raise ValidationError("The total owed amounts must equal the expense amount.")
+        elif split_method in ['full_owed', 'full_owe']:
+            total_owed = sum(Decimal(str(split['owed_amount'])) for split in splits_data)
+            if total_owed != total_amount:
+                raise ValidationError("The total owed amounts must equal the expense amount.")
+        elif split_method == 'percentage':
+            total_percentage = sum(Decimal(str(split['value'])) for split in splits_data)
+            if abs(total_percentage - Decimal('100')) > Decimal('0.0001'):
+                raise ValidationError("The total percentages must equal 100%.")
+            for split in splits_data:
+                split['owed_amount'] = (total_amount * Decimal(str(split.get('value', 0))) / Decimal('100')).quantize(Decimal('0.01'))
+        elif split_method == 'equal':
+            if len(splits_data) != len(participants):
+                raise ValidationError("Participants count must match splits count for equal split.")
+            for split in splits_data:
+                split['owed_amount'] = (total_amount / Decimal(len(participants))).quantize(Decimal('0.01'))
+        elif split_method == 'shares':
+            total_shares = Decimal(sum(Decimal(str(split['value'])) for split in splits_data))
+            if total_shares == 0:
+                raise ValidationError("Total shares must be greater than 0.")
+            for split in splits_data:
+                split['owed_amount'] = (Decimal(str(split['value'])) / total_shares * total_amount).quantize(Decimal('0.01'))
+        elif split_method == 'excess':
+            total_excess = sum(Decimal(str(split.get('value', 0))) for split in splits_data)
+            base_amount = (total_amount - total_excess) / Decimal(len(participants))
+            for split in splits_data:
+                split['owed_amount'] = (base_amount + Decimal(str(split.get('value', 0)))).quantize(Decimal('0.01'))
+
+        with transaction.atomic():
+            serializer.save()
+            ExpenseSplit.objects.filter(expense=instance).delete()
+            for split in splits_data:
+                ExpenseSplit.objects.create(
+                    expense=instance,
+                    user=User.objects.get(id=split['user']),
+                    paid_amount=Decimal(str(split.get('paid_amount', 0))),
+                    owed_amount=Decimal(str(split.get('owed_amount', 0))),
+                )
+
+        return Response(serializer.data)
 
 @login_required
 def calculate_balances(request):

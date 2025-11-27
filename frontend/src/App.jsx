@@ -6,6 +6,8 @@ import Login from "./components/Login";
 import Expenses from "./components/Expenses";
 import UserList from "./components/UserList";
 import UserExpenses from "./components/UserExpenses";
+import ExpenseDetail from "./components/ExpenseDetail";
+import EditExpense from "./components/EditExpense";
 import AddExpenseForm from "./components/AddExpenseForm";
 import Footer from "./components/Footer";
 import './styles.css';
@@ -111,8 +113,22 @@ function App() {
                         />
                     }
                 />
-                    <Route path="*" element={<Navigate to="/" replace />} />
-                </Routes>
+                <Route
+                    path="/expenses/:expenseId"
+                    element={
+                        <ExpenseDetail
+                            currentUserId={currentUser?.id}
+                        />
+                    }
+                />
+                <Route
+                    path="/expenses/:expenseId/edit"
+                    element={
+                        <EditExpense onDone={() => navigate(-1)} />
+                    }
+                />
+                <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
             </div>
             <Footer />
         </div>

@@ -53,11 +53,18 @@ function Expenses({ refreshKey, filterUserId, currentUserId, onlyCurrentUser = f
             <div className="expense-list">
                 {filteredExpenses.length > 0 ? (
                     filteredExpenses.map((expense) => {
-                        const dateObj = expense.expense_date
-                            ? new Date(expense.expense_date)
-                            : new Date(expense.date);
-                        const month = dateObj.toLocaleString("en-US", { month: "short" });
-                        const day = dateObj.getDate();
+                        let month = "";
+                        let day = "";
+                        if (expense.expense_date) {
+                            const [y, m, d] = expense.expense_date.split("-");
+                            const dateObj = new Date(Number(y), Number(m) - 1, Number(d));
+                            month = dateObj.toLocaleString("en-US", { month: "short" });
+                            day = Number(d);
+                        } else {
+                            const dateObj = new Date(expense.date);
+                            month = dateObj.toLocaleString("en-US", { month: "short" });
+                            day = dateObj.getDate();
+                        }
                         const paidByYou = currentUserId && Number(expense.paid_by) === Number(currentUserId);
                         const payerLabel =
                             expense.paid_by_display ||
@@ -89,7 +96,7 @@ function Expenses({ refreshKey, filterUserId, currentUserId, onlyCurrentUser = f
                         }
 
                         return (
-                            <div key={expense.id} className="expense-row">
+                            <Link key={expense.id} to={`/expenses/${expense.id}`} className="expense-row">
                                 <div className="expense-date">
                                     <div className="expense-month">{month}</div>
                                     <div className="expense-day">{day}</div>
@@ -119,7 +126,7 @@ function Expenses({ refreshKey, filterUserId, currentUserId, onlyCurrentUser = f
                                         <div className="status-amount" />
                                     )}
                                 </div>
-                            </div>
+                            </Link>
                         );
                     })
                 ) : (
