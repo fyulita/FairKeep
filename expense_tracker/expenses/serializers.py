@@ -13,22 +13,37 @@ class ExpenseSplitSerializer(serializers.ModelSerializer):
 
 
 class ExpenseSerializer(serializers.ModelSerializer):
-    splits = ExpenseSplitSerializer(many=True, required=False)
+    splits = ExpenseSplitSerializer(many=True, required=False, source='expensesplit_set')
     added_by = serializers.ReadOnlyField(source='added_by.username')
     participants = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), many=True)
+    paid_by_username = serializers.ReadOnlyField(source='paid_by.username')
+    paid_by_display = serializers.SerializerMethodField()
 
     class Meta:
         model = Expense
-        fields = ['id', 'name', 'amount', 'category', 'date', 'added_by', 'participants', 'paid_by', 'splits', 'split_method']
+        fields = [
+            'id',
+            'name',
+            'amount',
+            'category',
+            'date',
+            'expense_date',
+            'added_by',
+            'participants',
+            'paid_by',
+            'paid_by_username',
+            'paid_by_display',
+            'splits',
+            'split_method',
+        ]
+
+    def get_paid_by_display(self, obj):
+        full = obj.paid_by.get_full_name()
+        return full if full else obj.paid_by.username
 
     def create(self, validated_data):
-        splits_data = validated_data.pop('splits', [])
-        participants = validated_data.pop('participants', [])
+        splits_data = validated_data.pop('expensesplit_set', [])
+        validated_data.pop('participants', None)  # handled in view via splits_data
         expense = Expense.objects.create(**validated_data)
-        expense.participants.set(participants)
-
-        for split_data in splits_data:
-            split_data.pop('value', None)  # value is used for calculations but not stored
-            ExpenseSplit.objects.create(expense=expense, **split_data)
 
         return expense

@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.utils import timezone
 
 # Create your models here.
 class Expense(models.Model):
@@ -25,6 +26,7 @@ class Expense(models.Model):
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     category = models.CharField(max_length=20, choices=CATEGORY_CHOICES)
     date = models.DateTimeField(auto_now_add=True)
+    expense_date = models.DateField(default=timezone.now)
     added_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='added_expenses')
     participants = models.ManyToManyField(User, through='ExpenseSplit', related_name='shared_expenses')
     paid_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='paid_expenses')

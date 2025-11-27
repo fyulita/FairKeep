@@ -1,34 +1,55 @@
 import { useState, useEffect } from "react";
+import { Routes, Route, Navigate, Link, useNavigate } from "react-router-dom";
 import api from "./api/axiosConfig";
 import Navbar from "./components/Navbar";
-import Footer from "./components/Footer";
 import Login from "./components/Login";
 import Expenses from "./components/Expenses";
-import Balances from "./components/Balances";
+import UserList from "./components/UserList";
+import UserExpenses from "./components/UserExpenses";
+import AddExpenseForm from "./components/AddExpenseForm";
+import Footer from "./components/Footer";
 import './styles.css';
 
 function App() {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [expensesVersion, setExpensesVersion] = useState(0);
+    const [currentUser, setCurrentUser] = useState(null);
+    const navigate = useNavigate();
+
+    const checkSession = async () => {
+        try {
+            const response = await api.get("check-session/");
+            setIsLoggedIn(response.data.authenticated);
+            if (response.data.authenticated) {
+                setCurrentUser({ id: response.data.id, username: response.data.username, display_name: response.data.display_name });
+            } else {
+                setCurrentUser(null);
+            }
+        } catch {
+            setIsLoggedIn(false);
+            setCurrentUser(null);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
-        const checkSession = async () => {
-            try {
-                const response = await api.get("check-session/");
-                setIsLoggedIn(response.data.authenticated);
-            } catch {
-                setIsLoggedIn(false);
-            } finally {
-                setLoading(false);
-            }
-        };
         checkSession();
     }, []);
+
+    useEffect(() => {
+        if (isLoggedIn) {
+            checkSession();
+        }
+    }, [isLoggedIn]);
 
     const logout = async () => {
         try {
             await api.post("logout/");
             setIsLoggedIn(false);
+            setCurrentUser(null);
+            navigate("/");
         } catch (error) {
             console.error("Error during logout:", error);
         }
@@ -36,19 +57,65 @@ function App() {
 
     if (loading) return <div>Loading...</div>;
 
-    return isLoggedIn ? (
-        <div>
-            <Navbar />
-            <header>
-                <h1>Expense Tracker</h1>
-                <button onClick={logout}>Logout</button> {/* Logout Button */}
-            </header>
-            <Balances />
-            <Expenses logout={logout} />
+    if (!isLoggedIn) {
+        return <Login setIsLoggedIn={setIsLoggedIn} onLoginSuccess={checkSession} />;
+    }
+
+    return (
+        <div className="app-shell">
+            <Navbar logout={logout}/>
+            <div className="app-content">
+                <Routes>
+                    <Route
+                        path="/"
+                        element={
+                            <>
+                                <div className="page-actions">
+                                    <Link className="primary-button" to="/add-expense">Add Expense</Link>
+                                    <Link className="secondary-button" to="/expenses">All My Expenses</Link>
+                                </div>
+                                <UserList currentUserId={currentUser?.id} refreshKey={expensesVersion} />
+                            </>
+                        }
+                    />
+                    <Route
+                        path="/add-expense"
+                        element={
+                            <AddExpenseForm
+                                onSuccess={() => {
+                                    setExpensesVersion((v) => v + 1);
+                                    navigate("/");
+                                }}
+                                onCancel={() => navigate("/")}
+                            />
+                        }
+                    />
+                    <Route
+                        path="/with/:userId"
+                        element={
+                            <UserExpenses
+                                currentUserId={currentUser?.id}
+                                refreshKey={expensesVersion}
+                            />
+                        }
+                    />
+                    <Route
+                    path="/expenses"
+                    element={
+                        <Expenses
+                            title="All My Expenses"
+                            refreshKey={expensesVersion}
+                            currentUserId={currentUser?.id}
+                            onlyCurrentUser
+                            showBack
+                        />
+                    }
+                />
+                    <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+            </div>
             <Footer />
         </div>
-    ) : (
-        <Login setIsLoggedIn={setIsLoggedIn} />
     );
 }
 

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import api from "../api/axiosConfig";
 
-function Login({ setIsLoggedIn }) {
+function Login({ setIsLoggedIn, onLoginSuccess }) {
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
@@ -11,7 +11,10 @@ function Login({ setIsLoggedIn }) {
         try {
             await api.get("csrf/");
             const response = await api.post("login/", { username, password });
-            if (response.status === 200) setIsLoggedIn(true);
+            if (response.status === 200) {
+                setIsLoggedIn(true);
+                if (onLoginSuccess) onLoginSuccess();
+            }
         } catch (error) {
             console.error("Login Failed: ", error);
             setError("Invalid username or password");
