@@ -388,6 +388,13 @@ h1 {
   padding: 20px 16px 24px 16px;
 }
 
+.full-height-card {
+  min-height: calc(100vh - 140px);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
 .profile-form .form-row {
   margin-bottom: 22px;
   display: flex;
@@ -402,7 +409,9 @@ h1 {
 }
 
 .logout-block {
-  margin-top: 8px;
+  margin-top: 24px;
+  display: flex;
+  justify-content: center;
 }
 
 .status-message {
@@ -418,6 +427,12 @@ h1 {
   width: 100%;
   padding: 14px 12px;
   font-size: 16px;
+}
+
+.password-block {
+  margin-top: 24px;
+  padding-top: 8px;
+  border-top: 1px solid #e6e6e6;
 }
 
 .expense-form-container h2 {

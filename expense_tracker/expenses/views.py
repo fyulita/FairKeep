@@ -8,7 +8,7 @@ from django.utils import timezone
 import json
 from django.http import JsonResponse
 from django.middleware.csrf import get_token
-from rest_framework import viewsets, serializers
+from rest_framework import viewsets, serializers, status
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import api_view, permission_classes
@@ -58,6 +58,29 @@ def user_detail(request, user_id):
         "last_name": user.last_name,
         "display_name": f"{user.first_name} {user.last_name}".strip() or user.username,
     })
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def change_password(request):
+    current = request.data.get("current_password", "")
+    new1 = request.data.get("new_password", "")
+    new2 = request.data.get("confirm_password", "")
+
+    if not current or not new1 or not new2:
+        return Response({"detail": "All password fields are required."}, status=status.HTTP_400_BAD_REQUEST)
+    if new1 != new2:
+        return Response({"detail": "New passwords do not match."}, status=status.HTTP_400_BAD_REQUEST)
+    if len(new1) < 8:
+        return Response({"detail": "New password must be at least 8 characters."}, status=status.HTTP_400_BAD_REQUEST)
+
+    user = request.user
+    if not user.check_password(current):
+        return Response({"detail": "Current password is incorrect."}, status=status.HTTP_400_BAD_REQUEST)
+
+    user.set_password(new1)
+    user.save()
+    return Response({"detail": "Password updated successfully."})
 from rest_framework import status
 
 import logging
