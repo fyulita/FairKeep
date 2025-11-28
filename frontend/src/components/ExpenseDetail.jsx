@@ -77,6 +77,8 @@ function ExpenseDetail({ currentUserId }) {
         ? expense.split_method.charAt(0).toUpperCase() + expense.split_method.slice(1)
         : "";
 
+    const [confirmingDelete, setConfirmingDelete] = useState(false);
+
     if (loading) return <p>Loading expense...</p>;
     if (error) return <p className="error-message">{error}</p>;
     if (!expense) return null;
@@ -94,24 +96,43 @@ function ExpenseDetail({ currentUserId }) {
                 <button
                     className="danger-button"
                     disabled={deleting}
-                    onClick={async () => {
-                        const ok = window.confirm("Delete this expense?");
-                        if (!ok) return;
-                        try {
-                            setDeleting(true);
-                            await api.delete(`/expenses/${expense.id}/`);
-                            navigate("/");
-                        } catch (err) {
-                            console.error("Error deleting expense", err);
-                            setDeleting(false);
-                            setError("Failed to delete expense");
-                        }
-                    }}
+                    onClick={() => setConfirmingDelete(true)}
                 >
-                    {deleting ? "Deleting..." : "Delete Expense"}
+                    {deleting ? "Deleting..." : "Delete"}
                 </button>
-                <Link className="secondary-button" to="/add-expense">Add Expense</Link>
             </div>
+            {confirmingDelete && (
+                <div className="modal-backdrop">
+                    <div className="modal-card">
+                        <h3>Delete Expense</h3>
+                        <p>Are you sure you want to delete “{expense.name}”?</p>
+                        <div className="form-actions">
+                            <button
+                                className="danger-button"
+                                disabled={deleting}
+                                onClick={async () => {
+                                    try {
+                                        setDeleting(true);
+                                        await api.delete(`/expenses/${expense.id}/`);
+                                        navigate("/");
+                                    } catch (err) {
+                                        console.error("Error deleting expense", err);
+                                        setDeleting(false);
+                                        setError("Failed to delete expense");
+                                    } finally {
+                                        setConfirmingDelete(false);
+                                    }
+                                }}
+                            >
+                                {deleting ? "Deleting..." : "Yes, delete"}
+                            </button>
+                            <button className="secondary-button" onClick={() => setConfirmingDelete(false)}>
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
             <h2>{expense.name}</h2>
             <div className="expense-detail-meta">
                 <div><strong>Amount:</strong> {formatCurrency(expense.currency, expense.amount)}</div>

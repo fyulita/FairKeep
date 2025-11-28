@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { Routes, Route, Navigate, Link, useNavigate } from "react-router-dom";
 import api from "./api/axiosConfig";
-import Navbar from "./components/Navbar";
 import Login from "./components/Login";
 import Expenses from "./components/Expenses";
 import UserList from "./components/UserList";
@@ -11,6 +10,8 @@ import EditExpense from "./components/EditExpense";
 import Activities from "./components/Activities";
 import AddExpenseForm from "./components/AddExpenseForm";
 import Footer from "./components/Footer";
+import BottomNav from "./components/BottomNav";
+import UserProfile from "./components/UserProfile";
 import './styles.css';
 
 function App() {
@@ -66,19 +67,14 @@ function App() {
 
     return (
         <div className="app-shell">
-            <Navbar logout={logout}/>
             <div className="app-content">
                 <Routes>
                     <Route
                         path="/"
                         element={
                             <>
-                                <div className="page-actions">
-                                    <Link className="primary-button" to="/add-expense">Add Expense</Link>
-                                    <Link className="secondary-button" to="/expenses">All My Expenses</Link>
-                                    <Link className="secondary-button" to="/activities">Activities</Link>
-                                </div>
                                 <UserList currentUserId={currentUser?.id} refreshKey={expensesVersion} />
+                                <Link className="fab-add-expense" to="/add-expense">＋</Link>
                             </>
                         }
                     />
@@ -111,7 +107,6 @@ function App() {
                             refreshKey={expensesVersion}
                             currentUserId={currentUser?.id}
                             onlyCurrentUser
-                            showBack
                         />
                     }
                 />
@@ -133,9 +128,14 @@ function App() {
                     path="/activities"
                     element={<Activities />}
                 />
+                <Route
+                    path="/user"
+                    element={<UserProfile logout={logout} />}
+                />
                 <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
             </div>
+            <BottomNav />
             <Footer />
         </div>
     );

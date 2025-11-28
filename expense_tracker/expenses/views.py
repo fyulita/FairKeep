@@ -17,6 +17,49 @@ from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 from .models import Expense, ExpenseSplit, Activity
 from .serializers import ExpenseSerializer, ActivitySerializer
 
+# User detail (GET/PATCH) for profile updates
+@api_view(['GET', 'PATCH'])
+@permission_classes([IsAuthenticated])
+def user_detail(request, user_id):
+    try:
+        user = User.objects.get(pk=user_id)
+    except User.DoesNotExist:
+        return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        return Response({
+            "id": user.id,
+            "username": user.username,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "display_name": f"{user.first_name} {user.last_name}".strip() or user.username,
+        })
+
+    if request.user.id != user.id:
+        return Response({"detail": "Forbidden."}, status=status.HTTP_403_FORBIDDEN)
+
+    data = request.data
+    if 'first_name' in data:
+        user.first_name = data.get('first_name', '') or ''
+    if 'last_name' in data:
+        user.last_name = data.get('last_name', '') or ''
+    if 'display_name' in data:
+        display_parts = data.get('display_name', '').strip().split()
+        if len(display_parts) >= 1:
+            user.first_name = user.first_name or display_parts[0]
+        if len(display_parts) >= 2 and not user.last_name:
+            user.last_name = " ".join(display_parts[1:])
+    user.save()
+
+    return Response({
+        "id": user.id,
+        "username": user.username,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "display_name": f"{user.first_name} {user.last_name}".strip() or user.username,
+    })
+from rest_framework import status
+
 import logging
 logger = logging.getLogger(__name__)
 

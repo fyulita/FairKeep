@@ -322,6 +322,16 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
     };
 
     const allParticipants = [loggedUser?.id, ...participants].filter(Boolean);
+    const filteredUsersStep1 = users
+        .filter((u) => u.id !== loggedUser?.id)
+        .filter((u) => {
+            const term = userSearch.trim().toLowerCase();
+            if (!term) return true;
+            const display = (u.display_name || "").toLowerCase();
+            const username = (u.username || "").toLowerCase();
+            return display.startsWith(term) || username.startsWith(term);
+        });
+
     const filteredUsers = users
         .filter((u) => u.id !== loggedUser?.id)
         .filter((u) => {
@@ -351,32 +361,45 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
                     );
                 })}
             </div>
-            <input
-                type="text"
-                className="search-input"
-                placeholder="Search people"
-                value={userSearch}
-                onChange={(e) => setUserSearch(e.target.value)}
-            />
-            {userSearch.trim() && (
-                <div className="search-results">
-                    {filteredUsers.length === 0 && <p className="subtle">No matches</p>}
-                    {filteredUsers.map((u) => (
-                        <div
-                            key={u.id}
-                            className="user-result"
-                            onClick={() => toggleParticipant(u.id)}
-                        >
-                            {u.display_name || u.username}
-                        </div>
-                    ))}
-                </div>
-            )}
+            <div className="search-row">
+                <input
+                    type="text"
+                    className="search-input"
+                    placeholder="Search people"
+                    value={userSearch}
+                    onChange={(e) => setUserSearch(e.target.value)}
+                />
+                {userSearch && (
+                    <button
+                        type="button"
+                        className="clear-button"
+                        onClick={() => setUserSearch("")}
+                        aria-label="Clear search"
+                    >
+                        ×
+                    </button>
+                )}
+            </div>
+            <div className="search-results">
+                {filteredUsersStep1.length === 0 && <p className="subtle">No matches</p>}
+                {filteredUsersStep1.map((u) => (
+                    <div
+                        key={u.id}
+                        className="user-result"
+                        onClick={() => toggleParticipant(u.id)}
+                    >
+                        {u.display_name || u.username}
+                    </div>
+                ))}
+            </div>
             <div className="form-actions">
                 <button
                     type="button"
                     className="primary-button"
-                    onClick={() => setStep(2)}
+                    onClick={() => {
+                        setUserSearch("");
+                        setStep(2);
+                    }}
                 >
                     Next
                 </button>
@@ -453,13 +476,25 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
                     );
                 })}
             </div>
-            <input
-                type="text"
-                className="search-input"
-                placeholder="Add more people"
-                value={userSearch}
-                onChange={(e) => setUserSearch(e.target.value)}
-            />
+            <div className="search-row">
+                <input
+                    type="text"
+                    className="search-input"
+                    placeholder="Add more people"
+                    value={userSearch}
+                    onChange={(e) => setUserSearch(e.target.value)}
+                />
+                {userSearch && (
+                    <button
+                        type="button"
+                        className="clear-button"
+                        onClick={() => setUserSearch("")}
+                        aria-label="Clear search"
+                    >
+                        ×
+                    </button>
+                )}
+            </div>
             {userSearch.trim() && (
                 <div className="search-results">
                     {filteredUsers.length === 0 && <p className="subtle">No matches</p>}
