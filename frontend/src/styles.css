@@ -43,6 +43,9 @@ h1 {
   padding: 10px 20px;
   background-color: #2f3a4a;
   color: white;
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 
 .navbar-title {
@@ -361,7 +364,7 @@ h1 {
   border: 1px solid #e6e6e6;
   border-radius: 8px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.08);
-  padding: 12px 0 16px 0;
+  padding: 12px 12px 16px 12px;
   width: 100%;
   box-sizing: border-box;
 }
@@ -419,6 +422,114 @@ h1 {
   display: flex;
   gap: 10px;
   align-items: center;
+}
+
+.chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.chip {
+  padding: 8px 12px;
+  border-radius: 16px;
+  border: 1px solid #dcdcdc;
+  background: #f5f5f5;
+  cursor: pointer;
+  font-size: 14px;
+  color: #000;
+}
+
+.chip-active {
+  background: #e4eaff;
+  border-color: #6200ee;
+  color: #2b2655;
+}
+
+.self-chip {
+  background: #e8f7f0;
+  border: 1px solid #b2e1c8;
+}
+
+.search-results {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.user-result {
+  padding: 10px 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.user-result:hover {
+  background: #f5f5f5;
+}
+
+.pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.pill {
+  padding: 6px 10px;
+  border-radius: 14px;
+  background: #f0f0ff;
+  border: 1px solid #d8d8ff;
+  font-size: 13px;
+}
+
+.self-pill {
+  background: #e8f7f0;
+  border: 1px solid #b2e1c8;
+}
+
+.two-col {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.split-quick {
+  margin: 16px 0;
+}
+
+.split-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.split-btn {
+  padding: 8px 10px;
+  border: 1px solid #dcdcdc;
+  background: #f7f7f7;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.split-btn.active {
+  background: #6200ee;
+  color: white;
+  border-color: #6200ee;
+}
+
+.currency-button {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #cfd8e3;
+  border-radius: 6px;
+  background-color: #f7f9fc;
+  color: #1f2a3d;
+  cursor: pointer;
 }
 
 .amount-row {
@@ -552,10 +663,34 @@ h1 {
   background: #f5f5f5;
   text-align: left;
   cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .currency-options + .form-actions {
   margin-top: 12px;
+}
+
+.currency-left {
+  font-weight: 600;
+}
+
+.currency-right {
+  color: #555;
+  font-size: 12px;
+}
+.search-input {
+  width: 100%;
+  max-width: 100%;
+  display: block;
+  padding: 10px;
+  border: 1px solid #cfd8e3;
+  border-radius: 6px;
+  box-sizing: border-box;
+  margin: 8px 0;
+  background: #fff;
+  color: #000;
 }
 
 .user-pill-link {

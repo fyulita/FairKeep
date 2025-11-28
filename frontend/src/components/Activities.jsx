@@ -5,6 +5,28 @@ function Activities() {
     const [activities, setActivities] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+    const currencySymbol = (code) => {
+        const map = {
+            ARS: "$",
+            UYU: "$",
+            CLP: "$",
+            MXN: "$",
+            BRL: "R$",
+            USD: "$",
+            EUR: "€",
+            GBP: "£",
+            JPY: "¥",
+            PYG: "₲",
+            AUD: "A$",
+            KRW: "₩",
+        };
+        return map[code] || "";
+    };
+    const formatAmount = (code, amount) => {
+        const num = parseFloat(amount);
+        const display = Number.isFinite(num) ? num.toFixed(2) : amount;
+        return `${code}${currencySymbol(code)} ${display}`;
+    };
 
     useEffect(() => {
         const fetchActivities = async () => {
@@ -26,9 +48,6 @@ function Activities() {
 
     return (
         <div className="activities">
-            <div className="page-actions">
-                <button className="secondary-button" onClick={() => window.history.back()}>Back</button>
-            </div>
             <h2>Activity</h2>
             {activities.length === 0 ? (
                 <p>No activity yet.</p>
@@ -44,7 +63,7 @@ function Activities() {
                                             {act.action} • {new Date(act.created_at).toLocaleString()} • {act.split_method} • {act.currency}
                                         </div>
                                     </div>
-                                    <div className="activity-amount">{act.currency} {act.expense_amount}</div>
+                                    <div className="activity-amount">{formatAmount(act.currency, act.expense_amount)}</div>
                                 </a>
                             ) : (
                                 <div className="activity-link disabled">
@@ -54,7 +73,7 @@ function Activities() {
                                             {act.action} • {new Date(act.created_at).toLocaleString()} • {act.split_method} • {act.currency}
                                         </div>
                                     </div>
-                                    <div className="activity-amount">{act.currency} {act.expense_amount}</div>
+                                    <div className="activity-amount">{formatAmount(act.currency, act.expense_amount)}</div>
                                 </div>
                             )}
                         </li>

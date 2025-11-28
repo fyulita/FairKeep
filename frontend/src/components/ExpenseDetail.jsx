@@ -10,6 +10,28 @@ function ExpenseDetail({ currentUserId }) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [deleting, setDeleting] = useState(false);
+    const currencySymbol = (code) => {
+        const map = {
+            ARS: "$",
+            UYU: "$",
+            CLP: "$",
+            MXN: "$",
+            BRL: "R$",
+            USD: "$",
+            EUR: "€",
+            GBP: "£",
+            JPY: "¥",
+            PYG: "₲",
+            AUD: "A$",
+            KRW: "₩",
+        };
+        return map[code] || "";
+    };
+    const formatCurrency = (code, amt) => {
+        const num = parseFloat(amt);
+        const display = Number.isFinite(num) ? num.toFixed(2) : amt;
+        return `${code}${currencySymbol(code)} ${display}`;
+    };
 
     useEffect(() => {
         const fetchData = async () => {
@@ -92,14 +114,14 @@ function ExpenseDetail({ currentUserId }) {
             </div>
             <h2>{expense.name}</h2>
             <div className="expense-detail-meta">
-                <div><strong>Amount:</strong> {expense.currency} {expense.amount}</div>
+                <div><strong>Amount:</strong> {formatCurrency(expense.currency, expense.amount)}</div>
                 <div><strong>Category:</strong> {expense.category}</div>
                 <div><strong>Expense Date:</strong> {prettyDate}</div>
                 <div><strong>Recorded At:</strong> {new Date(expense.date).toLocaleString()}</div>
                 <div><strong>Paid By:</strong> {expense.paid_by_display || expense.paid_by_username || `User #${expense.paid_by}`}</div>
                 <div><strong>Added By:</strong> {expense.added_by_display || expense.added_by}</div>
                 <div><strong>Split Method:</strong> {splitMethodLabel}</div>
-                <div><strong>Currency:</strong> {expense.currency}</div>
+                <div><strong>Currency:</strong> {formatCurrency(expense.currency, "")}</div>
             </div>
             <h3>Participants</h3>
             <table className="split-table">

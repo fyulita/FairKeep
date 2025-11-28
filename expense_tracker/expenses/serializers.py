@@ -99,13 +99,13 @@ class ActivitySerializer(serializers.ModelSerializer):
             "UYU": "$",
             "CLP": "$",
             "MXN": "$",
-            "BRL": "R$",
+            "BRL": "$",
             "USD": "$",
             "EUR": "€",
             "GBP": "£",
             "JPY": "¥",
             "PYG": "₲",
-            "AUD": "A$",
+            "AUD": "$",
             "KRW": "₩",
         }
         return mapping.get(obj.currency, obj.currency)

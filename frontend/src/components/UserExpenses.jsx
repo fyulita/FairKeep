@@ -23,10 +23,6 @@ function UserExpenses({ currentUserId, refreshKey }) {
 
     return (
         <div>
-            <div className="page-actions">
-                <Link className="secondary-button" to="/">Back</Link>
-                <Link className="primary-button" to="/add-expense">Add Expense</Link>
-            </div>
             <Expenses
                 title={`Expenses with ${username || "user"}`}
                 refreshKey={refreshKey}

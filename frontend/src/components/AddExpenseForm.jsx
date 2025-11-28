@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import api from "../api/axiosConfig";
 
 const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = null }) => {
+    const [step, setStep] = useState(1);
     const [name, setName] = useState("");
     const [category, setCategory] = useState("");
     const [amount, setAmount] = useState("");
@@ -14,19 +15,23 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
     const [splitDetails, setSplitDetails] = useState([]);
     const [errorMessage, setErrorMessage] = useState("");
     const [currency, setCurrency] = useState("ARS");
+    const [showCurrencyModal, setShowCurrencyModal] = useState(false);
+    const [userSearch, setUserSearch] = useState("");
+    const [currencySearch, setCurrencySearch] = useState("");
+    const currencyLabel = (code) => currencyOptions.find((c) => c.code === code)?.label || code;
     const currencyOptions = [
-        { code: "ARS", label: "ARS$" },
-        { code: "UYU", label: "UYU$" },
-        { code: "CLP", label: "CLP$" },
-        { code: "MXN", label: "MXN$" },
-        { code: "BRL", label: "BRL R$" },
-        { code: "USD", label: "USD$" },
-        { code: "EUR", label: "EUR€" },
-        { code: "GBP", label: "GBP£" },
-        { code: "JPY", label: "JPY¥" },
-        { code: "PYG", label: "PYG₲" },
-        { code: "AUD", label: "AUD$" },
-        { code: "KRW", label: "KRW₩" },
+        { code: "ARS", label: "ARS$", name: "Argentine Peso" },
+        { code: "UYU", label: "UYU$", name: "Uruguayan Peso" },
+        { code: "CLP", label: "CLP$", name: "Chilean Peso" },
+        { code: "MXN", label: "MXN$", name: "Mexican Peso" },
+        { code: "BRL", label: "BRL R$", name: "Brazilian Real" },
+        { code: "USD", label: "USD$", name: "US Dollar" },
+        { code: "EUR", label: "EUR€", name: "Euro" },
+        { code: "GBP", label: "GBP£", name: "British Pound" },
+        { code: "JPY", label: "JPY¥", name: "Japanese Yen" },
+        { code: "PYG", label: "PYG₲", name: "Paraguayan Guarani" },
+        { code: "AUD", label: "AUD$", name: "Australian Dollar" },
+        { code: "KRW", label: "KRW₩", name: "South Korean Won" },
     ];
 
     const fetchUsers = async () => {
@@ -55,6 +60,7 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
         setSplitDetails([]);
         setErrorMessage("");
         setCurrency("ARS");
+        setStep(1);
     };
 
     const resetSplitDetails = () => {
@@ -98,6 +104,7 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
         setPaidBy(initialData.paid_by || "");
         setSplitMethod(initialData.split_method || "");
         setCurrency(initialData.currency || "ARS");
+        setStep(2);
 
         // participants: remove logged user from the selectable list (since we always include logged user)
         const others = (initialData.participants || []).filter((id) => id !== loggedUser.id);
@@ -302,13 +309,192 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
         return <p>Loading form...</p>;
     }
 
-    return (
+    const toggleParticipant = (id) => {
+        setParticipants((prev) => {
+            const next = prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id];
+            // Ensure paidBy remains valid
+            const all = [loggedUser?.id, ...next].filter(Boolean);
+            if (!all.includes(Number(paidBy))) {
+                setPaidBy(all[0] || "");
+            }
+            return next;
+        });
+    };
+
+    const allParticipants = [loggedUser?.id, ...participants].filter(Boolean);
+    const filteredUsers = users
+        .filter((u) => u.id !== loggedUser?.id)
+        .filter((u) => {
+            const term = userSearch.trim().toLowerCase();
+            if (!term) return false;
+            const display = (u.display_name || "").toLowerCase();
+            const username = (u.username || "").toLowerCase();
+            return display.startsWith(term) || username.startsWith(term);
+        });
+
+    const renderStep1 = () => (
         <div className="form-card">
+            <h2>Add an expense</h2>
+            <p className="subtle">With you and:</p>
+            <div className="chip-list">
+                <span className="chip self-chip">You</span>
+                {participants.map((id) => {
+                    const u = users.find((user) => user.id === id);
+                    return (
+                        <button
+                            key={id}
+                            className="chip chip-active"
+                            onClick={() => toggleParticipant(id)}
+                        >
+                            {u?.display_name || u?.username}
+                        </button>
+                    );
+                })}
+            </div>
+            <input
+                type="text"
+                className="search-input"
+                placeholder="Search people"
+                value={userSearch}
+                onChange={(e) => setUserSearch(e.target.value)}
+            />
+            {userSearch.trim() && (
+                <div className="search-results">
+                    {filteredUsers.length === 0 && <p className="subtle">No matches</p>}
+                    {filteredUsers.map((u) => (
+                        <div
+                            key={u.id}
+                            className="user-result"
+                            onClick={() => toggleParticipant(u.id)}
+                        >
+                            {u.display_name || u.username}
+                        </div>
+                    ))}
+                </div>
+            )}
+            <div className="form-actions">
+                <button
+                    type="button"
+                    className="primary-button"
+                    onClick={() => setStep(2)}
+                >
+                    Next
+                </button>
+                {onCancel && (
+                    <button type="button" className="secondary-button" onClick={onCancel}>
+                        Cancel
+                    </button>
+                )}
+            </div>
+        </div>
+    );
+
+    const renderCurrencyModal = () => (
+        showCurrencyModal && (
+            <div className="modal-backdrop">
+                <div className="modal-card">
+                    <h3>Select Currency</h3>
+                    <input
+                        type="text"
+                        className="search-input"
+                        placeholder="Search currency"
+                        value={currencySearch}
+                        onChange={(e) => setCurrencySearch(e.target.value)}
+                    />
+                    <div className="currency-options">
+                        {currencyOptions
+                            .filter((opt) => {
+                                const term = currencySearch.toLowerCase();
+                                return (
+                                    !term ||
+                                    opt.label.toLowerCase().startsWith(term) ||
+                                    opt.code.toLowerCase().startsWith(term) ||
+                                    (opt.name && opt.name.toLowerCase().startsWith(term))
+                                );
+                            })
+                            .map((opt) => (
+                            <button
+                                key={opt.code}
+                                className="currency-pill"
+                                onClick={() => {
+                                    setCurrency(opt.code);
+                                    setShowCurrencyModal(false);
+                                }}
+                            >
+                                <span className="currency-left">{opt.label}</span>
+                                <span className="currency-right">{opt.name}</span>
+                            </button>
+                        ))}
+                    </div>
+                    <div className="form-actions">
+                        <button className="secondary-button" onClick={() => setShowCurrencyModal(false)}>Close</button>
+                    </div>
+                </div>
+            </div>
+        )
+    );
+
+    const renderStep2 = () => (
+        <div className="form-card">
+            <h2>Add an expense</h2>
+            <p className="subtle">With you and:</p>
+            <div className="chip-list">
+                <span className="chip self-chip">You</span>
+                {participants.map((id) => {
+                    const u = users.find((user) => user.id === id);
+                    return (
+                        <button
+                            key={id}
+                            className="chip chip-active"
+                            onClick={() => toggleParticipant(id)}
+                        >
+                            {u?.display_name || u?.username}
+                        </button>
+                    );
+                })}
+            </div>
+            <input
+                type="text"
+                className="search-input"
+                placeholder="Add more people"
+                value={userSearch}
+                onChange={(e) => setUserSearch(e.target.value)}
+            />
+            {userSearch.trim() && (
+                <div className="search-results">
+                    {filteredUsers.length === 0 && <p className="subtle">No matches</p>}
+                    {filteredUsers.map((u) => (
+                        <div
+                            key={u.id}
+                            className="user-result"
+                            onClick={() => toggleParticipant(u.id)}
+                        >
+                            {u.display_name || u.username}
+                        </div>
+                    ))}
+                </div>
+            )}
             <form className="expense-form" onSubmit={handleSubmit}>
-                <h2>Add New Expense</h2>
                 <div>
-                    <label>Expense Name</label>
+                    <label>Description</label>
                     <input type="text" value={name} onChange={(e) => setName(e.target.value)} required />
+                </div>
+                <div className="amount-row">
+                    <div className="currency-field">
+                        <label>Currency</label>
+                        <button type="button" className="currency-button" onClick={() => setShowCurrencyModal(true)}>
+                            {currencyLabel(currency)}
+                        </button>
+                    </div>
+                    <div className="amount-field">
+                        <label>Amount</label>
+                        <input
+                            type="number"
+                            value={amount}
+                            onChange={(e) => setAmount(e.target.value)}
+                            required
+                        />
+                    </div>
                 </div>
                 <div>
                     <label>Category</label>
@@ -322,102 +508,58 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
                         <option value="Other">Other</option>
                     </select>
                 </div>
-                <div>
-                    <label>Currency</label>
-                    <select value={currency} onChange={(e) => setCurrency(e.target.value)} required>
-                        <option value="ARS">Peso Argentino</option>
-                        <option value="UYU">Peso Uruguayo</option>
-                        <option value="CLP">Peso Chileno</option>
-                        <option value="MXN">Peso Mexicano</option>
-                        <option value="BRL">Real Brasilero</option>
-                        <option value="USD">Dolar EEUU</option>
-                        <option value="EUR">Euro</option>
-                        <option value="GBP">Libras</option>
-                        <option value="JPY">Yenes</option>
-                        <option value="PYG">Guaranies Paraguayos</option>
-                        <option value="AUD">Dolar Australiano</option>
-                        <option value="KRW">Won Coreano</option>
-                    </select>
-                </div>
-                <div className="amount-row">
-                    <div className="currency-field">
-                        <label>Currency</label>
-                        <select value={currency} onChange={(e) => setCurrency(e.target.value)} required>
-                            {currencyOptions.map((opt) => (
-                                <option key={opt.code} value={opt.code}>{opt.label}</option>
-                            ))}
-                        </select>
-                    </div>
-                    <div className="amount-field">
-                        <label>Amount</label>
+                <div className="two-col">
+                    <div>
+                        <label>Expense Date</label>
                         <input
-                            type="number"
-                            value={amount}
-                            onChange={(e) => setAmount(e.target.value)}
+                            type="date"
+                            value={expenseDate}
+                            onChange={(e) => setExpenseDate(e.target.value)}
                             required
                         />
                     </div>
+                    {allParticipants.length > 1 && (
+                        <div>
+                            <label>Paid By</label>
+                            <select value={paidBy} onChange={(e) => setPaidBy(e.target.value)} required>
+                                <option value="">Select Payer</option>
+                                {allParticipants.map((pid) => {
+                                    const u = users.find((x) => x.id === pid) || loggedUser;
+                                    return (
+                                        <option key={pid} value={pid}>
+                                            {u?.display_name || u?.username}
+                                        </option>
+                                    );
+                                })}
+                            </select>
+                        </div>
+                    )}
                 </div>
-                <div>
-                    <label>Expense Date</label>
-                    <input
-                        type="date"
-                        value={expenseDate}
-                        onChange={(e) => setExpenseDate(e.target.value)}
-                        required
-                    />
-                </div>
-                <div>
-                    <label>Participants</label>
-                    <select
-                        multiple
-                        value={participants}
-                        onChange={(e) =>
-                            setParticipants([...e.target.selectedOptions].map((option) => parseInt(option.value)))
-                        }
-                    >
-                        {users
-                            .filter((user) => user.id !== loggedUser?.id)
-                            .map((user) => (
-                                <option key={user.id} value={user.id}>
-                                    {user.username}
-                                </option>
-                            ))}
-                    </select>
-                </div>
-                <div>
-                    <label>Paid By</label>
-                    <select value={paidBy} onChange={(e) => setPaidBy(e.target.value)} required>
-                        <option value="">Select Payer</option>
-                        {[loggedUser, ...users.filter((user) => participants.includes(user.id))]
-                            .filter(Boolean)
-                            .map((user) => (
-                                <option key={user.id} value={user.id}>
-                                    {user.username}
-                                </option>
-                            ))}
-                    </select>
-                </div>
-                <div>
-                    <label>Splitting Method</label>
-                    <select value={splitMethod} onChange={(e) => setSplitMethod(e.target.value)} required>
-                        <option value="">Select Splitting Method</option>
-                        <option value="equal">Split Equally</option>
-                        <option value="manual">Manual Amount Entry</option>
-                        <option value="percentage">Percentage</option>
-                        <option value="shares">Shares</option>
-                        <option value="excess">Excess Adjustment</option>
-                        {participants.length === 1 && (
-                            <>
-                                <option value="full_owed">You are owed the full amount</option>
-                                <option value="full_owe">You owe the full amount</option>
-                            </>
-                        )}
-                    </select>
-                </div>
-                {splitMethod && <div>{renderSplitDetails()}</div>}
+
+                {allParticipants.length > 1 && (
+                    <>
+                        <div className="split-quick">
+                            <p>Split options</p>
+                            <div className="split-buttons">
+                                <button type="button" className={splitMethod === "equal" ? "split-btn active" : "split-btn"} onClick={() => setSplitMethod("equal")}>Equal</button>
+                                <button type="button" className={splitMethod === "manual" ? "split-btn active" : "split-btn"} onClick={() => setSplitMethod("manual")}>Exact</button>
+                                <button type="button" className={splitMethod === "percentage" ? "split-btn active" : "split-btn"} onClick={() => setSplitMethod("percentage")}>%</button>
+                                <button type="button" className={splitMethod === "shares" ? "split-btn active" : "split-btn"} onClick={() => setSplitMethod("shares")}>Shares</button>
+                                {participants.length === 1 && (
+                                    <>
+                                        <button type="button" className={splitMethod === "full_owed" ? "split-btn active" : "split-btn"} onClick={() => setSplitMethod("full_owed")}>You owed 100%</button>
+                                        <button type="button" className={splitMethod === "full_owe" ? "split-btn active" : "split-btn"} onClick={() => setSplitMethod("full_owe")}>You owe 100%</button>
+                                    </>
+                                )}
+                                <button type="button" className={splitMethod === "excess" ? "split-btn active" : "split-btn"} onClick={() => setSplitMethod("excess")}>Adjust</button>
+                            </div>
+                        </div>
+
+                        {splitMethod && <div>{renderSplitDetails()}</div>}
+                    </>
+                )}
                 <div className="form-actions">
-                    <button type="submit">Add Expense</button>
+                    <button type="submit">Save</button>
                     {onCancel && (
                         <button type="button" className="secondary-button" onClick={onCancel}>
                             Cancel
@@ -425,8 +567,11 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
                     )}
                 </div>
             </form>
+            {renderCurrencyModal()}
         </div>
     );
+
+    return step === 1 ? renderStep1() : renderStep2();
 };
 
 export default AddExpenseForm;

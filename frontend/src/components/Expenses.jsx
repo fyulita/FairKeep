@@ -2,8 +2,30 @@ import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import api from "../api/axiosConfig";
 
-function Expenses({ refreshKey, filterUserId, currentUserId, onlyCurrentUser = false, title = "Expenses", showBack = false }) {
+function Expenses({ refreshKey, filterUserId, currentUserId, onlyCurrentUser = false, title = "Expenses" }) {
     const [expenses, setExpenses] = useState([]);
+    const currencySymbol = (code) => {
+        const map = {
+            ARS: "$",
+            UYU: "$",
+            CLP: "$",
+            MXN: "$",
+            BRL: "R$",
+            USD: "$",
+            EUR: "€",
+            GBP: "£",
+            JPY: "¥",
+            PYG: "₲",
+            AUD: "A$",
+            KRW: "₩",
+        };
+        return map[code] || "";
+    };
+    const formatCurrency = (code, amt) => {
+        const num = parseFloat(amt);
+        const display = Number.isFinite(num) ? num.toFixed(2) : amt;
+        return `${code}${currencySymbol(code)} ${display}`;
+    };
 
     const fetchExpenses = async () => {
         try {
@@ -22,6 +44,15 @@ function Expenses({ refreshKey, filterUserId, currentUserId, onlyCurrentUser = f
         const targetId = filterUserId ? Number(filterUserId) : null;
         const me = currentUserId ? Number(currentUserId) : null;
 
+        const getDisplayDate = (expense) => {
+            if (expense.expense_date) {
+                // expense_date is YYYY-MM-DD
+                const [y, m, d] = expense.expense_date.split("-");
+                return new Date(Number(y), Number(m) - 1, Number(d));
+            }
+            return new Date(expense.date);
+        };
+
         return [...expenses]
             .filter((expense) => {
                 const participants = expense.participants || [];
@@ -39,16 +70,11 @@ function Expenses({ refreshKey, filterUserId, currentUserId, onlyCurrentUser = f
 
                 return true;
             })
-            .sort((a, b) => new Date(b.date) - new Date(a.date));
+            .sort((a, b) => getDisplayDate(b) - getDisplayDate(a));
     }, [expenses, filterUserId, currentUserId, onlyCurrentUser]);
 
     return (
         <div>
-            {showBack && (
-                <div className="page-actions">
-                    <Link className="secondary-button" to="/">Back</Link>
-                </div>
-            )}
             <h2>{title}</h2>
             <div className="expense-list">
                 {filteredExpenses.length > 0 ? (
@@ -105,8 +131,8 @@ function Expenses({ refreshKey, filterUserId, currentUserId, onlyCurrentUser = f
                                     <div className="expense-title">{expense.name}</div>
                                     <div className="expense-sub">
                                         {paidByYou
-                                            ? `You paid ${expense.currency} ${expense.amount}`
-                                            : `${payerLabel} paid ${expense.currency} ${expense.amount}`}
+                                            ? `You paid ${formatCurrency(expense.currency, expense.amount)}`
+                                            : `${payerLabel} paid ${formatCurrency(expense.currency, expense.amount)}`}
                                     </div>
                                 </div>
                                 <div className="expense-amount">
@@ -119,7 +145,7 @@ function Expenses({ refreshKey, filterUserId, currentUserId, onlyCurrentUser = f
                                                 <div className="status-text borrowed">you borrowed</div>
                                             )}
                                             <div className="status-amount">
-                                                {counterpartyAmount !== null ? `${expense.currency} ${counterpartyAmount.toFixed(2)}` : ""}
+                                                {counterpartyAmount !== null ? formatCurrency(expense.currency, counterpartyAmount) : ""}
                                             </div>
                                         </>
                                     ) : (
