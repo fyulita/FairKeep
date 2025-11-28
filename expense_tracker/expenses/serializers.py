@@ -37,9 +37,10 @@ class ExpenseSerializer(serializers.ModelSerializer):
             'paid_by_username',
             'paid_by_display',
             'splits',
-        'split_method',
-        'updated_at',
-    ]
+            'split_method',
+            'updated_at',
+            'currency',
+        ]
 
     def get_added_by_display(self, obj):
         full = obj.added_by.get_full_name()
@@ -68,6 +69,7 @@ class ExpenseSerializer(serializers.ModelSerializer):
 
 class ActivitySerializer(serializers.ModelSerializer):
     actor_name = serializers.SerializerMethodField()
+    currency_symbol = serializers.SerializerMethodField()
 
     class Meta:
         model = Activity
@@ -81,6 +83,8 @@ class ActivitySerializer(serializers.ModelSerializer):
             'split_method',
             'expense_date',
             'actor_name',
+            'currency',
+            'currency_symbol',
         ]
 
     def get_actor_name(self, obj):
@@ -88,3 +92,20 @@ class ActivitySerializer(serializers.ModelSerializer):
             full = obj.actor.get_full_name()
             return full if full else obj.actor.username
         return "Unknown"
+
+    def get_currency_symbol(self, obj):
+        mapping = {
+            "ARS": "$",
+            "UYU": "$",
+            "CLP": "$",
+            "MXN": "$",
+            "BRL": "R$",
+            "USD": "$",
+            "EUR": "€",
+            "GBP": "£",
+            "JPY": "¥",
+            "PYG": "₲",
+            "AUD": "A$",
+            "KRW": "₩",
+        }
+        return mapping.get(obj.currency, obj.currency)

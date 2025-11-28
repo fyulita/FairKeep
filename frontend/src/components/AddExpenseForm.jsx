@@ -13,6 +13,21 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
     const [splitMethod, setSplitMethod] = useState("");
     const [splitDetails, setSplitDetails] = useState([]);
     const [errorMessage, setErrorMessage] = useState("");
+    const [currency, setCurrency] = useState("ARS");
+    const currencyOptions = [
+        { code: "ARS", label: "ARS$" },
+        { code: "UYU", label: "UYU$" },
+        { code: "CLP", label: "CLP$" },
+        { code: "MXN", label: "MXN$" },
+        { code: "BRL", label: "BRL R$" },
+        { code: "USD", label: "USD$" },
+        { code: "EUR", label: "EUR€" },
+        { code: "GBP", label: "GBP£" },
+        { code: "JPY", label: "JPY¥" },
+        { code: "PYG", label: "PYG₲" },
+        { code: "AUD", label: "AUD$" },
+        { code: "KRW", label: "KRW₩" },
+    ];
 
     const fetchUsers = async () => {
         try {
@@ -39,6 +54,7 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
         setSplitMethod("");
         setSplitDetails([]);
         setErrorMessage("");
+        setCurrency("ARS");
     };
 
     const resetSplitDetails = () => {
@@ -81,6 +97,7 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
         setExpenseDate(initialData.expense_date || new Date().toISOString().split("T")[0]);
         setPaidBy(initialData.paid_by || "");
         setSplitMethod(initialData.split_method || "");
+        setCurrency(initialData.currency || "ARS");
 
         // participants: remove logged user from the selectable list (since we always include logged user)
         const others = (initialData.participants || []).filter((id) => id !== loggedUser.id);
@@ -194,6 +211,7 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
             paid_by: paidByOverride !== null ? paidByOverride : parseInt(paidBy, 10),
             split_method: splitMethod,
             participants: uniqueParticipants,
+            currency,
             splits: payloadSplits,
         };
     
@@ -305,13 +323,40 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
                     </select>
                 </div>
                 <div>
-                    <label>Amount</label>
-                    <input
-                        type="number"
-                        value={amount}
-                        onChange={(e) => setAmount(e.target.value)}
-                        required
-                    />
+                    <label>Currency</label>
+                    <select value={currency} onChange={(e) => setCurrency(e.target.value)} required>
+                        <option value="ARS">Peso Argentino</option>
+                        <option value="UYU">Peso Uruguayo</option>
+                        <option value="CLP">Peso Chileno</option>
+                        <option value="MXN">Peso Mexicano</option>
+                        <option value="BRL">Real Brasilero</option>
+                        <option value="USD">Dolar EEUU</option>
+                        <option value="EUR">Euro</option>
+                        <option value="GBP">Libras</option>
+                        <option value="JPY">Yenes</option>
+                        <option value="PYG">Guaranies Paraguayos</option>
+                        <option value="AUD">Dolar Australiano</option>
+                        <option value="KRW">Won Coreano</option>
+                    </select>
+                </div>
+                <div className="amount-row">
+                    <div className="currency-field">
+                        <label>Currency</label>
+                        <select value={currency} onChange={(e) => setCurrency(e.target.value)} required>
+                            {currencyOptions.map((opt) => (
+                                <option key={opt.code} value={opt.code}>{opt.label}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="amount-field">
+                        <label>Amount</label>
+                        <input
+                            type="number"
+                            value={amount}
+                            onChange={(e) => setAmount(e.target.value)}
+                            required
+                        />
+                    </div>
                 </div>
                 <div>
                     <label>Expense Date</label>

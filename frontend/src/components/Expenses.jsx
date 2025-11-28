@@ -105,8 +105,8 @@ function Expenses({ refreshKey, filterUserId, currentUserId, onlyCurrentUser = f
                                     <div className="expense-title">{expense.name}</div>
                                     <div className="expense-sub">
                                         {paidByYou
-                                            ? `You paid $${expense.amount}`
-                                            : `${payerLabel} paid $${expense.amount}`}
+                                            ? `You paid ${expense.currency} ${expense.amount}`
+                                            : `${payerLabel} paid ${expense.currency} ${expense.amount}`}
                                     </div>
                                 </div>
                                 <div className="expense-amount">
@@ -119,7 +119,7 @@ function Expenses({ refreshKey, filterUserId, currentUserId, onlyCurrentUser = f
                                                 <div className="status-text borrowed">you borrowed</div>
                                             )}
                                             <div className="status-amount">
-                                                {counterpartyAmount !== null ? `$${counterpartyAmount.toFixed(2)}` : ""}
+                                                {counterpartyAmount !== null ? `${expense.currency} ${counterpartyAmount.toFixed(2)}` : ""}
                                             </div>
                                         </>
                                     ) : (

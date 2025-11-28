@@ -24,12 +24,28 @@ class Expense(models.Model):
         ('full_owe', 'You owe full amount'),
     ]
 
+    CURRENCY_CHOICES = [
+        ('ARS', 'Peso Argentino'),
+        ('UYU', 'Peso Uruguayo'),
+        ('CLP', 'Peso Chileno'),
+        ('MXN', 'Peso Mexicano'),
+        ('BRL', 'Real Brasilero'),
+        ('USD', 'Dolar EEUU'),
+        ('EUR', 'Euro'),
+        ('GBP', 'Libras'),
+        ('JPY', 'Yenes'),
+        ('PYG', 'Guaranies Paraguayos'),
+        ('AUD', 'Dolar Australiano'),
+        ('KRW', 'Won Coreano'),
+    ]
+
     name = models.CharField(max_length=50)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     category = models.CharField(max_length=20, choices=CATEGORY_CHOICES)
     date = models.DateTimeField(auto_now_add=True)
     expense_date = models.DateField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
+    currency = models.CharField(max_length=3, choices=CURRENCY_CHOICES, default='ARS')
     added_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='added_expenses')
     participants = models.ManyToManyField(User, through='ExpenseSplit', related_name='shared_expenses')
     paid_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='paid_expenses')
@@ -65,6 +81,7 @@ class Activity(models.Model):
     expense_amount = models.DecimalField(max_digits=10, decimal_places=2)
     split_method = models.CharField(max_length=50, blank=True)
     expense_date = models.DateField(null=True, blank=True)
+    currency = models.CharField(max_length=3, choices=Expense.CURRENCY_CHOICES, default='ARS')
     involved_users = models.ManyToManyField(User, related_name='activities_involved')
     participants_snapshot = models.JSONField(default=list, blank=True)
 

@@ -30,6 +30,7 @@ def _log_activity(action, expense, actor, splits_data, participants_ids, payer_i
             expense_amount=expense.amount,
             split_method=expense.split_method,
             expense_date=expense.expense_date,
+            currency=expense.currency,
             participants_snapshot=[int(p) for p in participants_ids],
         )
         involved = set(participants_ids)
@@ -68,6 +69,7 @@ class ExpenseViewSet(viewsets.ModelViewSet):
         total_amount = Decimal(str(data['amount']))
         print("Total Amount:", total_amount)  # Debugging
         payer_id = int(data.get('paid_by'))
+        currency = data.get('currency', 'ARS')
 
         # Normalize splits by user to avoid duplicates
         normalized = {}
@@ -140,6 +142,7 @@ class ExpenseViewSet(viewsets.ModelViewSet):
         split_method = request.data.get('split_method')
         total_amount = Decimal(str(request.data.get('amount')))
         payer_id = int(request.data.get('paid_by'))
+        currency = request.data.get('currency', instance.currency)
 
         normalized = {}
         for split in splits_data:
@@ -255,26 +258,30 @@ def balances(request):
                 if uid == current_user.id:
                     continue
                 u = entry["user"]
+                key = (uid, expense.currency)
                 dest = balances_map.setdefault(
-                    uid,
+                    key,
                     {
                         "user_id": uid,
                         "username": u.username,
                         "display_name": u.get_full_name() or u.username,
                         "amount": Decimal('0'),
+                        "currency": expense.currency,
                     },
                 )
                 dest["amount"] += entry["owed"]
         else:
             my_entry = split_totals.get(current_user.id)
             if my_entry:
+                key = (payer.id, expense.currency)
                 dest = balances_map.setdefault(
-                    payer.id,
+                    key,
                     {
                         "user_id": payer.id,
                         "username": payer.username,
                         "display_name": payer.get_full_name() or payer.username,
                         "amount": Decimal('0'),
+                        "currency": expense.currency,
                     },
                 )
                 dest["amount"] -= my_entry["owed"]
@@ -311,8 +318,11 @@ def activities(request):
 def settle_up(request):
     current_user = request.user
     target_id = request.data.get('user_id')
+    currency = request.data.get('currency')
     if not target_id:
         return Response({"error": "user_id is required"}, status=400)
+    if not currency:
+        return Response({"error": "currency is required"}, status=400)
     try:
         target_user = User.objects.get(id=target_id)
     except User.DoesNotExist:
@@ -323,7 +333,7 @@ def settle_up(request):
         expensesplit__user=current_user
     ).filter(
         expensesplit__user=target_user
-    ).exclude(split_method__in=['full_owed', 'full_owe']).exclude(name__startswith="Settle with ").prefetch_related('expensesplit_set__user', 'paid_by').distinct()
+    ).filter(currency=currency).exclude(split_method__in=['full_owed', 'full_owe']).exclude(name__startswith="Settle with ").prefetch_related('expensesplit_set__user', 'paid_by').distinct()
 
     net = Decimal('0')
     for expense in expenses:
@@ -371,6 +381,7 @@ def settle_up(request):
                 paid_by=target_user,
                 split_method="manual",
                 added_by=current_user,
+                currency=currency,
             )
             ExpenseSplit.objects.create(expense=settlement, user=target_user, paid_amount=amount, owed_amount=Decimal('0'))
             ExpenseSplit.objects.create(expense=settlement, user=current_user, paid_amount=Decimal('0'), owed_amount=amount)
@@ -389,6 +400,7 @@ def settle_up(request):
                 paid_by=current_user,
                 split_method="manual",
                 added_by=current_user,
+                currency=currency,
             )
             ExpenseSplit.objects.create(expense=settlement, user=current_user, paid_amount=amount, owed_amount=Decimal('0'))
             ExpenseSplit.objects.create(expense=settlement, user=target_user, paid_amount=Decimal('0'), owed_amount=amount)

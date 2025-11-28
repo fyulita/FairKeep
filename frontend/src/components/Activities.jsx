@@ -41,20 +41,20 @@ function Activities() {
                                     <div>
                                         <div className="activity-title">{act.expense_name}</div>
                                         <div className="activity-meta">
-                                            {act.action} • {new Date(act.created_at).toLocaleString()} • {act.split_method}
+                                            {act.action} • {new Date(act.created_at).toLocaleString()} • {act.split_method} • {act.currency}
                                         </div>
                                     </div>
-                                    <div className="activity-amount">${act.expense_amount}</div>
+                                    <div className="activity-amount">{act.currency} {act.expense_amount}</div>
                                 </a>
                             ) : (
                                 <div className="activity-link disabled">
                                     <div>
                                         <div className="activity-title">{act.expense_name}</div>
                                         <div className="activity-meta">
-                                            {act.action} • {new Date(act.created_at).toLocaleString()} • {act.split_method}
+                                            {act.action} • {new Date(act.created_at).toLocaleString()} • {act.split_method} • {act.currency}
                                         </div>
                                     </div>
-                                    <div className="activity-amount">${act.expense_amount}</div>
+                                    <div className="activity-amount">{act.currency} {act.expense_amount}</div>
                                 </div>
                             )}
                         </li>
