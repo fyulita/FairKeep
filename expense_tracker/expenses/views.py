@@ -4,6 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from decimal import Decimal
+from django.utils import timezone
 import json
 from django.http import JsonResponse
 from django.middleware.csrf import get_token
@@ -304,6 +305,100 @@ def activities(request):
     qs = Activity.objects.filter(involved_users=user).order_by('-created_at')[:100]
     serializer = ActivitySerializer(qs, many=True)
     return Response(serializer.data)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def settle_up(request):
+    current_user = request.user
+    target_id = request.data.get('user_id')
+    if not target_id:
+        return Response({"error": "user_id is required"}, status=400)
+    try:
+        target_user = User.objects.get(id=target_id)
+    except User.DoesNotExist:
+        return Response({"error": "user not found"}, status=404)
+
+    # Compute net balance between current_user and target_user
+    expenses = Expense.objects.filter(
+        expensesplit__user=current_user
+    ).filter(
+        expensesplit__user=target_user
+    ).exclude(split_method__in=['full_owed', 'full_owe']).exclude(name__startswith="Settle with ").prefetch_related('expensesplit_set__user', 'paid_by').distinct()
+
+    net = Decimal('0')
+    for expense in expenses:
+        splits = list(expense.expensesplit_set.all())
+
+        split_totals = {}
+        for s in splits:
+            entry = split_totals.setdefault(
+                s.user.id,
+                {"owed": Decimal('0'), "paid": Decimal('0')},
+            )
+            entry["owed"] += Decimal(str(s.owed_amount))
+            entry["paid"] += Decimal(str(s.paid_amount))
+
+        if current_user.id not in split_totals or target_user.id not in split_totals:
+            continue
+
+        my_entry = split_totals.get(current_user.id, {"owed": Decimal('0'), "paid": Decimal('0')})
+        other_entry = split_totals.get(target_user.id, {"owed": Decimal('0'), "paid": Decimal('0')})
+
+        payer_id = expense.paid_by_id
+        if payer_id == current_user.id:
+            # target owes current user
+            net += other_entry["owed"]
+        elif payer_id == target_user.id:
+            # current user owes target
+            net -= my_entry["owed"]
+        else:
+            # third-party payer: no net between these two
+            continue
+
+    if net == 0:
+        return Response({"message": "Nothing to settle"}, status=200)
+
+    amount = abs(net)
+    # Create settlement expense
+    with transaction.atomic():
+        if net > 0:
+            # target owes current_user; target pays
+            settlement = Expense.objects.create(
+                name=f"Settle with {target_user.get_full_name() or target_user.username}",
+                amount=amount,
+                category="Other",
+                expense_date=timezone.now().date(),
+                paid_by=target_user,
+                split_method="manual",
+                added_by=current_user,
+            )
+            ExpenseSplit.objects.create(expense=settlement, user=target_user, paid_amount=amount, owed_amount=Decimal('0'))
+            ExpenseSplit.objects.create(expense=settlement, user=current_user, paid_amount=Decimal('0'), owed_amount=amount)
+            settlement.participants.set([current_user.id, target_user.id])
+            _log_activity('settled', settlement, current_user, [
+                {"user": target_user.id, "paid_amount": amount, "owed_amount": Decimal('0')},
+                {"user": current_user.id, "paid_amount": Decimal('0'), "owed_amount": amount},
+            ], [current_user.id, target_user.id], target_user.id)
+        else:
+            # current_user owes target; current_user pays
+            settlement = Expense.objects.create(
+                name=f"Settle with {target_user.get_full_name() or target_user.username}",
+                amount=amount,
+                category="Other",
+                expense_date=timezone.now().date(),
+                paid_by=current_user,
+                split_method="manual",
+                added_by=current_user,
+            )
+            ExpenseSplit.objects.create(expense=settlement, user=current_user, paid_amount=amount, owed_amount=Decimal('0'))
+            ExpenseSplit.objects.create(expense=settlement, user=target_user, paid_amount=Decimal('0'), owed_amount=amount)
+            settlement.participants.set([current_user.id, target_user.id])
+            _log_activity('settled', settlement, current_user, [
+                {"user": current_user.id, "paid_amount": amount, "owed_amount": Decimal('0')},
+                {"user": target_user.id, "paid_amount": Decimal('0'), "owed_amount": amount},
+            ], [current_user.id, target_user.id], current_user.id)
+
+    return Response({"message": "Settled", "amount": str(amount), "with": target_user.id})
 
 @ensure_csrf_cookie
 def csrf_token_view(request):
