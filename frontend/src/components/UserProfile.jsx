@@ -12,6 +12,9 @@ const UserProfile = ({ logout }) => {
     const [currentPassword, setCurrentPassword] = useState("");
     const [newPassword, setNewPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
+    const [exporting, setExporting] = useState(false);
+    const [exportMessage, setExportMessage] = useState("");
+    const [username, setUsername] = useState("");
 
     useEffect(() => {
         const fetchUser = async () => {
@@ -20,6 +23,7 @@ const UserProfile = ({ logout }) => {
                 if (session.data?.authenticated) {
                     const id = session.data.id;
                     setUserId(id);
+                    setUsername(session.data.username || "");
                     // Try to get full user details for first/last name
                     try {
                         const detail = await api.get(`users/${id}/`);
@@ -156,6 +160,54 @@ const UserProfile = ({ logout }) => {
                     </button>
                 </div>
                 {pwMessage && <p className="subtle status-message">{pwMessage}</p>}
+            </div>
+
+            <div className="profile-form download-block">
+                <h3>Export your expenses</h3>
+                <div className="form-actions profile-actions">
+                    <button
+                        className="secondary-button"
+                        onClick={async () => {
+                            setExportMessage("");
+                            setExporting(true);
+                            try {
+                                const offset = new Date().getTimezoneOffset();
+                                const res = await api.get("export-expenses/", {
+                                    responseType: "blob",
+                                    params: { tz_offset: offset },
+                                });
+                                const blob = new Blob([res.data], { type: "text/csv" });
+                                const stamp = new Date();
+                                const pad = (n) => String(n).padStart(2, "0");
+                                const ts = `${stamp.getFullYear()}-${pad(stamp.getMonth() + 1)}-${pad(stamp.getDate())}T${pad(stamp.getHours())}-${pad(stamp.getMinutes())}-${pad(stamp.getSeconds())}`;
+                                let filename = `${username || "expenses"}_${ts}.csv`;
+                                const disp = res.headers["content-disposition"];
+                                if (disp) {
+                                    const match = /filename=\"?([^\";]+)\"?/i.exec(disp);
+                                    if (match) filename = match[1];
+                                }
+                                const url = window.URL.createObjectURL(blob);
+                                const a = document.createElement("a");
+                                a.href = url;
+                                a.download = filename;
+                                document.body.appendChild(a);
+                                a.click();
+                                a.remove();
+                                window.URL.revokeObjectURL(url);
+                                setExportMessage("CSV downloaded.");
+                            } catch (err) {
+                                console.error("Export failed", err);
+                                setExportMessage("Failed to export CSV.");
+                            } finally {
+                                setExporting(false);
+                            }
+                        }}
+                        disabled={exporting}
+                    >
+                        {exporting ? "Preparing..." : "Download expenses CSV"}
+                    </button>
+                </div>
+                {exportMessage && <p className="subtle status-message">{exportMessage}</p>}
             </div>
 
             <div className="logout-block">

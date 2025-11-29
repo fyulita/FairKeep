@@ -4,9 +4,10 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from decimal import Decimal
+from datetime import timedelta
 from django.utils import timezone
 import json
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.middleware.csrf import get_token
 from rest_framework import viewsets, serializers, status
 from rest_framework.response import Response
@@ -16,6 +17,7 @@ from rest_framework.exceptions import ValidationError
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 from .models import Expense, ExpenseSplit, Activity
 from .serializers import ExpenseSerializer, ActivitySerializer
+import csv
 
 # User detail (GET/PATCH) for profile updates
 @api_view(['GET', 'PATCH'])
@@ -81,6 +83,83 @@ def change_password(request):
     user.set_password(new1)
     user.save()
     return Response({"detail": "Password updated successfully."})
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def export_expenses(request):
+    user = request.user
+    expenses = Expense.objects.filter(
+        models.Q(participants=user)
+        | models.Q(added_by=user)
+        | models.Q(paid_by=user)
+        | models.Q(expensesplit__user=user)
+    ).distinct().order_by('expense_date', 'date', 'id').prefetch_related('expensesplit_set__user', 'paid_by', 'added_by')
+
+    # collect involved users
+    user_ids = {user.id}
+    for exp in expenses:
+        for s in exp.expensesplit_set.all():
+            user_ids.add(s.user_id)
+        user_ids.add(exp.added_by_id)
+        user_ids.add(exp.paid_by_id)
+    users_map = {u.id: u for u in User.objects.filter(id__in=user_ids)}
+
+    def display_name(u):
+        full = u.get_full_name()
+        return full if full else u.username
+
+    other_ids = sorted([uid for uid in user_ids if uid != user.id], key=lambda uid: display_name(users_map[uid]).lower())
+    ordered_user_ids = [user.id] + other_ids
+    ordered_user_names = [display_name(users_map[uid]) for uid in ordered_user_ids]
+
+    tz_offset = 0
+    try:
+        tz_offset = int(request.GET.get("tz_offset", "0"))
+    except ValueError:
+        tz_offset = 0
+    now_utc = timezone.now()
+    # getTimezoneOffset is minutes to add to local to get UTC, so local = UTC - offset
+    now_ts = now_utc - timedelta(minutes=tz_offset)
+    response = HttpResponse(content_type='text/csv')
+    filename = f"{user.username}_{now_ts.strftime('%Y-%m-%dT%H-%M-%S')}.csv"
+    response['Content-Disposition'] = f'attachment; filename=\"{filename}\"'
+    writer = csv.writer(response)
+    header = ["Date", "Description", "Category", "Amount", "Currency", "CreatedBy", "PaidBy", "SplitMethod", "SplitOptions"] + ordered_user_names
+    writer.writerow(header)
+
+    for exp in expenses:
+        splits = list(exp.expensesplit_set.all())
+        net_by_user = {}
+        for s in splits:
+            net_by_user[s.user_id] = net_by_user.get(s.user_id, 0) + float(s.paid_amount) - float(s.owed_amount)
+
+        split_options = {}
+        if exp.split_method != 'equal':
+            for s in splits:
+                split_options[display_name(s.user)] = float(s.owed_amount)
+
+        row = [
+            exp.expense_date.isoformat(),
+            exp.name,
+            exp.category,
+            float(exp.amount),
+            exp.currency,
+            display_name(exp.added_by),
+            display_name(exp.paid_by),
+            exp.split_method.title() if exp.split_method else "",
+            json.dumps(split_options) if split_options else "",
+        ]
+        for uid in ordered_user_ids:
+            row.append(net_by_user.get(uid, 0))
+        writer.writerow(row)
+
+    # Append download timestamp row (and a spacer)
+    writer.writerow([])
+    writer.writerow([])
+    writer.writerow([now_ts.strftime("%Y-%m-%d %H:%M:%S")] + [""] * (len(header) - 1))
+
+    return response
 from rest_framework import status
 
 import logging
