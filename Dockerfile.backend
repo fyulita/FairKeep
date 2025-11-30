@@ -1,0 +1,20 @@
+FROM python:3.13-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y build-essential libpq-dev && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt /app/
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY fairkeep /app/fairkeep
+
+# Collect static at build time (can be skipped if handled at runtime)
+RUN python fairkeep/manage.py collectstatic --noinput || true
+
+EXPOSE 8000
+
+CMD ["gunicorn", "fairkeep.wsgi:application", "--bind", "0.0.0.0:8000"]

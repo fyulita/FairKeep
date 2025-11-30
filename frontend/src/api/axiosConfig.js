@@ -1,8 +1,10 @@
 import axios from "axios";
 
+const apiBase = import.meta.env.VITE_API_BASE_URL || "https://localhost:8000/api/";
+
 const api = axios.create({
-  baseURL: "https://localhost:8000/api/", // Your Django API base URL
-  withCredentials: true,                // Enable sending cookies
+  baseURL: apiBase,
+  withCredentials: true,
   headers: {
     "Content-Type": "application/json",
   },

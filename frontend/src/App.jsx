@@ -9,7 +9,6 @@ import ExpenseDetail from "./components/ExpenseDetail";
 import EditExpense from "./components/EditExpense";
 import Activities from "./components/Activities";
 import AddExpenseForm from "./components/AddExpenseForm";
-import Footer from "./components/Footer";
 import BottomNav from "./components/BottomNav";
 import UserProfile from "./components/UserProfile";
 import './styles.css';
@@ -136,7 +135,6 @@ function App() {
             </Routes>
             </div>
             <BottomNav />
-            <Footer />
         </div>
     );
 }
