@@ -49,6 +49,12 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
         fetchUsers();
     }, []);
 
+    useEffect(() => {
+        if (loggedUser?.id) {
+            setPaidBy(loggedUser.id);
+        }
+    }, [loggedUser]);
+
     const resetForm = () => {
         setName("");
         setCategory("");
@@ -185,12 +191,17 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
         const allParticipants = [loggedUser?.id, ...participants].filter(Boolean);
         const uniqueParticipants = Array.from(new Set(allParticipants));
         const amountNumber = parseFloat(amount) || 0;
-    
+
+        // Default payer: logged user if not set
+        const payerId = uniqueParticipants.length > 1
+            ? (parseInt(paidBy, 10) || loggedUser?.id)
+            : loggedUser?.id;
+
         let payloadSplits = splitDetails.map((split) => ({
-            user: split.id, // Ensure the ID matches the backend
-            value: split.value, // Needed for percentage/shares calculations in backend
-            owed_amount: split.value.toFixed(2), // Consistency in decimal points
-            paid_amount: split.id === parseInt(paidBy, 10) ? parseFloat(amount).toFixed(2) : "0.00",
+            user: split.id,
+            value: split.value,
+            owed_amount: split.value.toFixed(2),
+            paid_amount: split.id === payerId ? amountNumber.toFixed(2) : "0.00",
         }));
         let paidByOverride = null;
 
@@ -210,13 +221,28 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
             paidByOverride = otherId;
         }
 
+        // Personal expense (only self): create a single split and set payer to self
+        if (uniqueParticipants.length === 1 && loggedUser?.id) {
+            paidByOverride = loggedUser.id;
+            payloadSplits = [
+                {
+                    user: loggedUser.id,
+                    value: amountNumber,
+                    owed_amount: amountNumber.toFixed(2),
+                    paid_amount: amountNumber.toFixed(2),
+                },
+            ];
+            // Force a split method for backend validation
+            setSplitMethod((prev) => prev || "equal");
+        }
+
         const payload = {
             name,
             category,
             amount: parseFloat(amount).toFixed(2), // Ensure proper formatting
             expense_date: expenseDate,
-            paid_by: paidByOverride !== null ? paidByOverride : parseInt(paidBy, 10),
-            split_method: splitMethod,
+            paid_by: paidByOverride !== null ? paidByOverride : payerId,
+            split_method: splitMethod || "equal",
             participants: uniqueParticipants,
             currency,
             splits: payloadSplits,
@@ -321,7 +347,7 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
         });
     };
 
-    const allParticipants = [loggedUser?.id, ...participants].filter(Boolean);
+    const displayParticipants = [loggedUser?.id, ...participants].filter(Boolean);
     const filteredUsersStep1 = users
         .filter((u) => u.id !== loggedUser?.id)
         .filter((u) => {
@@ -553,12 +579,12 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
                             required
                         />
                     </div>
-                    {allParticipants.length > 1 && (
+                    {displayParticipants.length > 1 && (
                         <div>
                             <label>Paid By</label>
                             <select value={paidBy} onChange={(e) => setPaidBy(e.target.value)} required>
                                 <option value="">Select Payer</option>
-                                {allParticipants.map((pid) => {
+                                {displayParticipants.map((pid) => {
                                     const u = users.find((x) => x.id === pid) || loggedUser;
                                     return (
                                         <option key={pid} value={pid}>
@@ -571,7 +597,7 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
                     )}
                 </div>
 
-                {allParticipants.length > 1 && (
+                {displayParticipants.length > 1 && (
                     <>
                         <div className="split-quick">
                             <p>Split options</p>

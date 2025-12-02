@@ -208,8 +208,7 @@ class ExpenseViewSet(viewsets.ModelViewSet):
         splits_data = data.get('splits', [])
         print("Splits Data:", splits_data)  # Debugging
         participants = data.get('participants', [])
-        print("Participants:", participants)  # Debugging
-        split_method = data.get('split_method')
+        split_method = data.get('split_method') or 'equal'
         print("Split Method:", split_method)  # Debugging
         total_amount = Decimal(str(data['amount']))
         print("Total Amount:", total_amount)  # Debugging
@@ -226,6 +225,14 @@ class ExpenseViewSet(viewsets.ModelViewSet):
             entry["value"] += Decimal(str(split.get('value', 0)))
             normalized[uid] = entry
         splits_data = list(normalized.values())
+
+        # Ensure participants include payer, request user, and all split users
+        participants_ids = set(int(p) for p in participants)
+        participants_ids.add(payer_id)
+        participants_ids.add(self.request.user.id)
+        for split in splits_data:
+            participants_ids.add(int(split['user']))
+        participants = list(participants_ids)
 
         # Validate splits based on the selected method
         if split_method == 'manual':
@@ -272,6 +279,7 @@ class ExpenseViewSet(viewsets.ModelViewSet):
                     paid_amount=Decimal(str(split.get('paid_amount', 0))),
                     owed_amount=Decimal(str(split.get('owed_amount', 0))),
                 )
+            expense.participants.set(User.objects.filter(id__in=participants_ids))
             _log_activity('created', expense, self.request.user, splits_data, participants, payer_id)
 
     def update(self, request, *args, **kwargs):
@@ -298,6 +306,14 @@ class ExpenseViewSet(viewsets.ModelViewSet):
             entry["value"] += Decimal(str(split.get('value', 0)))
             normalized[uid] = entry
         splits_data = list(normalized.values())
+
+        # Ensure participants include payer, request user, and all split users
+        participants_ids = set(int(p) for p in participants)
+        participants_ids.add(payer_id)
+        participants_ids.add(request.user.id)
+        for split in splits_data:
+            participants_ids.add(int(split['user']))
+        participants = list(participants_ids)
 
         if split_method == 'manual':
             total_owed = sum(Decimal(str(split['owed_amount'])) for split in splits_data)
@@ -340,6 +356,7 @@ class ExpenseViewSet(viewsets.ModelViewSet):
                     paid_amount=Decimal(str(split.get('paid_amount', 0))),
                     owed_amount=Decimal(str(split.get('owed_amount', 0))),
                 )
+            instance.participants.set(User.objects.filter(id__in=participants_ids))
             _log_activity('updated', instance, request.user, splits_data, participants, payer_id)
 
         return Response(serializer.data)
