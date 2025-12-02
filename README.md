@@ -31,27 +31,30 @@ services:
       POSTGRES_PASSWORD: strongpassword
       POSTGRES_HOST: db
       POSTGRES_PORT: "5432"
+    working_dir: /app/fairkeep
     command: >
       sh -c "python fairkeep/manage.py migrate --noinput &&
              gunicorn fairkeep.wsgi:application --bind 0.0.0.0:8000"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     ports:
       - "8000:8000"
     volumes:
       - static_data:/app/fairkeep/staticfiles
       - media_data:/app/fairkeep/media
+
   frontend:
     build:
       context: .
       dockerfile: Dockerfile.frontend
-    build:
       args:
         VITE_API_BASE_URL: https://subdomain.domain.com/api/
     ports:
       - "80:80"
     depends_on:
       - backend
+
   db:
     image: postgres:16
     environment:
@@ -60,6 +63,11 @@ services:
       POSTGRES_PASSWORD: strongpassword
     volumes:
       - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
 volumes:
   db_data:
@@ -78,7 +86,7 @@ You can also place these environment variables in `.env` and keep compose cleane
 4) Reverse proxy routing:
    - `https://subdomain.domain.com/`  -> service `frontend:80`
    - `https://subdomain.domain.com/api/` and `/admin` -> service `backend:8000`
-5) Create a superuser (if needed):
+5) Create a superuser:
    ```bash
    docker compose exec backend python fairkeep/manage.py createsuperuser
    ```
