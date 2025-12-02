@@ -11,6 +11,7 @@ import Activities from "./components/Activities";
 import AddExpenseForm from "./components/AddExpenseForm";
 import BottomNav from "./components/BottomNav";
 import UserProfile from "./components/UserProfile";
+import logo from "./assets/logo.svg";
 import './styles.css';
 
 function App() {
@@ -66,6 +67,10 @@ function App() {
 
     return (
         <div className="app-shell">
+            <header className="app-header">
+                <img src={logo} alt="FairKeep logo" />
+                <span className="app-title">FairKeep</span>
+            </header>
             <div className="app-content">
                 <Routes>
                     <Route
