@@ -6,7 +6,12 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
     const [name, setName] = useState("");
     const [category, setCategory] = useState("");
     const [amount, setAmount] = useState("");
-    const [expenseDate, setExpenseDate] = useState(() => new Date().toISOString().split("T")[0]);
+    const getLocalDateISO = () => {
+        const now = new Date();
+        const offsetMs = now.getTimezoneOffset() * 60000;
+        return new Date(now.getTime() - offsetMs).toISOString().split("T")[0];
+    };
+    const [expenseDate, setExpenseDate] = useState(() => getLocalDateISO());
     const [paidBy, setPaidBy] = useState("");
     const [participants, setParticipants] = useState([]);
     const [users, setUsers] = useState([]);
@@ -59,7 +64,7 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
         setName("");
         setCategory("");
         setAmount("");
-        setExpenseDate(new Date().toISOString().split("T")[0]);
+        setExpenseDate(getLocalDateISO());
         setPaidBy("");
         setParticipants([]);
         setSplitMethod("");
