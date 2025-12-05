@@ -1,5 +1,6 @@
 import { useState } from "react";
 import api from "../api/axiosConfig";
+import logo from "../assets/logo.svg";
 
 function Login({ setIsLoggedIn, onLoginSuccess }) {
     const [username, setUsername] = useState("");
@@ -23,7 +24,11 @@ function Login({ setIsLoggedIn, onLoginSuccess }) {
 
     return (
         <div className="main-container">
-            <h1>Login</h1>
+            <div className="login-hero">
+                <img src={logo} alt="FairKeep logo" className="login-logo" />
+                <div className="login-title">FairKeep</div>
+                <p className="login-subtitle">Share expenses fairly, anywhere.</p>
+            </div>
             {error && <p style={{ color: "red" }}>{error}</p>}
             <form onSubmit={handleLogin} className="login-form">
                 <div>
@@ -33,6 +38,10 @@ function Login({ setIsLoggedIn, onLoginSuccess }) {
                         id="username"
                         value={username}
                         onChange={(e) => setUsername(e.target.value)}
+                        autoCapitalize="none"
+                        autoCorrect="off"
+                        spellCheck="false"
+                        autoComplete="username"
                         required
                     />
                 </div>

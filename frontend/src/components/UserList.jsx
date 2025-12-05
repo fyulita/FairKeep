@@ -132,7 +132,7 @@ function UserList({ currentUserId, refreshKey }) {
     });
 
     return (
-        <div className="user-list">
+        <div className="user-list page-container">
             {selectUserId && (
                 <div className="modal-backdrop">
                             <div className="modal-card">
@@ -146,7 +146,7 @@ function UserList({ currentUserId, refreshKey }) {
                                                 className="currency-pill"
                                                 onClick={() => chooseCurrency(selectUserId, b.currency)}
                                             >
-                                                {(b.amount || 0) >= 0 ? "They owe you" : "You owe"} {currencyLabel(b.currency)} {Math.abs(b.amount || 0).toFixed(2)}
+                                                {(b.amount || 0) >= 0 ? "They owe you" : "You owe"} {`${currencyLabel(b.currency)}${Math.abs(b.amount || 0).toFixed(2)}`}
                                             </button>
                                         )
                                     ))}
@@ -162,7 +162,7 @@ function UserList({ currentUserId, refreshKey }) {
                     <div className="modal-card">
                         <h3>Settle Up</h3>
                         <p>
-                            {userName(confirmUserId)} pays {confirmCurrency} {Math.abs(balances[confirmUserId]?.find((b) => b.currency === confirmCurrency)?.amount || 0).toFixed(2)} to you
+                            {userName(confirmUserId)} pays {`${confirmCurrency}${Math.abs(balances[confirmUserId]?.find((b) => b.currency === confirmCurrency)?.amount || 0).toFixed(2)}`} to you
                         </p>
                         <div className="form-actions">
                             <button className="primary-button" onClick={confirmSettle}>Yes</button>
@@ -175,32 +175,36 @@ function UserList({ currentUserId, refreshKey }) {
                 <p>No shared expenses yet.</p>
             ) : (
                 <>
-                    <div className="user-list-items">
-                        {nonZeroUsers.map((user) => {
-                            const userBalances = balances[user.id] || [];
-                            return (
-                                <div key={user.id} className="user-pill user-pill-column">
-                                    <div className="user-pill-header">
-                                        <Link to={`/with/${user.id}`} className="user-pill-link">
-                                            <span className="user-pill-name">{user.display_name || user.username}</span>
-                                        </Link>
-                                    <button className="secondary-button" onClick={() => settleUp(user.id)}>
-                                        Settle
-                                    </button>
-                                </div>
-                                <div className="user-balance-lines">
+                <div className="user-list-items">
+                    {nonZeroUsers.map((user) => {
+                        const userBalances = balances[user.id] || [];
+                        return (
+                            <Link key={user.id} to={`/with/${user.id}`} className="user-pill user-pill-column user-pill-link">
+                                <div className="user-pill-header">
+                                        <span className="user-pill-name">{user.display_name || user.username}</span>
+                                        <button
+                                            className="secondary-button"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                settleUp(user.id);
+                                            }}
+                                        >
+                                            Settle
+                                        </button>
+                                    </div>
+                                    <div className="user-balance-lines">
                                         {userBalances.map((b, idx) => (
                                             (b.amount || 0) !== 0 && (
                                                 <div
                                                     key={idx}
                                                     className={(b.amount || 0) >= 0 ? "balance-line positive" : "balance-line negative"}
                                                 >
-                                                    {(b.amount || 0) >= 0 ? "Owes you" : "You owe"} {currencyLabel(b.currency)} {Math.abs(b.amount || 0)}
+                                                    {(b.amount || 0) >= 0 ? "Owes you" : "You owe"} {`${currencyLabel(b.currency)}${Math.abs(b.amount || 0).toFixed(2)}`}
                                                 </div>
                                             )
                                         ))}
                                     </div>
-                                </div>
+                                </Link>
                             );
                         })}
                     </div>
@@ -209,12 +213,10 @@ function UserList({ currentUserId, refreshKey }) {
                             <summary>Settled balances</summary>
                             <div className="user-list-items">
                                 {zeroUsers.map((user) => (
-                                    <div key={user.id} className="user-pill">
-                                        <Link to={`/with/${user.id}`} className="user-pill-link">
-                                            <span className="user-pill-name">{user.display_name || user.username}</span>
-                                            <span className="user-pill-balance balance-positive">+0</span>
-                                        </Link>
-                                    </div>
+                                    <Link key={user.id} to={`/with/${user.id}`} className="user-pill user-pill-link">
+                                        <span className="user-pill-name">{user.display_name || user.username}</span>
+                                        <span className="user-pill-balance balance-positive">+0</span>
+                                    </Link>
                                 ))}
                             </div>
                         </details>

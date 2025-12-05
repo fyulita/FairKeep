@@ -22,10 +22,11 @@ function Activities() {
         };
         return map[code] || "";
     };
+    const currencyLabel = (code) => `${code}${currencySymbol(code)}`;
     const formatAmount = (code, amount) => {
         const num = parseFloat(amount);
         const display = Number.isFinite(num) ? num.toFixed(2) : amount;
-        return `${code}${currencySymbol(code)} ${display}`;
+        return `${code}${currencySymbol(code)}${display}`;
     };
 
     useEffect(() => {
@@ -43,12 +44,27 @@ function Activities() {
         fetchActivities();
     }, []);
 
-    if (loading) return <p>Loading activities...</p>;
-    if (error) return <p className="error-message">{error}</p>;
+    const formatDateTime = (iso) => {
+        if (!iso) return "";
+        const date = new Date(iso);
+        const pad = (n) => String(n).padStart(2, "0");
+        const d = pad(date.getDate());
+        const m = pad(date.getMonth() + 1);
+        const y = date.getFullYear();
+        const hh = pad(date.getHours());
+        const mm = pad(date.getMinutes());
+        const ss = pad(date.getSeconds());
+        return `${d}/${m}/${y} ${hh}:${mm}:${ss}`;
+    };
+
+    const pretty = (text = "") => text.charAt(0).toUpperCase() + text.slice(1);
+
+    if (loading) return <p className="page-container">Loading activities...</p>;
+    if (error) return <p className="error-message page-container">{error}</p>;
 
     return (
-        <div className="activities">
-            <h2>Activity</h2>
+        <div className="activities page-container">
+            <h2 className="page-title">Activity</h2>
             {activities.length === 0 ? (
                 <p>No activity yet.</p>
             ) : (
@@ -60,20 +76,20 @@ function Activities() {
                                     <div>
                                         <div className="activity-title">{act.expense_name}</div>
                                         <div className="activity-meta">
-                                            {act.action} • {new Date(act.created_at).toLocaleString()} • {act.split_method} • {act.currency}
+                                            {pretty(act.action)} • {formatDateTime(act.created_at)} • {pretty(act.split_method)} • {currencyLabel(act.currency)}
                                         </div>
                                     </div>
-                                    <div className="activity-amount">{formatAmount(act.currency, act.expense_amount)}</div>
+                                    <div className="activity-amount keep-color">{formatAmount(act.currency, act.expense_amount)}</div>
                                 </a>
                             ) : (
                                 <div className="activity-link disabled">
                                     <div>
                                         <div className="activity-title">{act.expense_name}</div>
                                         <div className="activity-meta">
-                                            {act.action} • {new Date(act.created_at).toLocaleString()} • {act.split_method} • {act.currency}
+                                            {pretty(act.action)} • {formatDateTime(act.created_at)} • {pretty(act.split_method)} • {currencyLabel(act.currency)}
                                         </div>
                                     </div>
-                                    <div className="activity-amount">{formatAmount(act.currency, act.expense_amount)}</div>
+                                    <div className="activity-amount keep-color">{formatAmount(act.currency, act.expense_amount)}</div>
                                 </div>
                             )}
                         </li>

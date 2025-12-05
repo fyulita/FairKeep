@@ -30,7 +30,7 @@ function ExpenseDetail({ currentUserId }) {
     const formatCurrency = (code, amt) => {
         const num = parseFloat(amt);
         const display = Number.isFinite(num) ? num.toFixed(2) : amt;
-        return `${code}${currencySymbol(code)} ${display}`;
+        return `${code}${currencySymbol(code)}${display}`;
     };
 
     useEffect(() => {
@@ -83,14 +83,32 @@ function ExpenseDetail({ currentUserId }) {
     if (error) return <p className="error-message">{error}</p>;
     if (!expense) return null;
 
-    const dateParts = expense.expense_date ? expense.expense_date.split("-") : null;
-    const prettyDate = dateParts
-        ? `${new Date(Number(dateParts[0]), Number(dateParts[1]) - 1, Number(dateParts[2])).toLocaleDateString()}`
-        : new Date(expense.date).toLocaleDateString();
+    const formatDate = (iso) => {
+        if (!iso) return "";
+        const [y, m, d] = iso.split("-");
+        return `${d}/${m}/${y}`;
+    };
+
+    const formatDateTime = (isoString) => {
+        if (!isoString) return "";
+        const date = new Date(isoString);
+        const pad = (n) => String(n).padStart(2, "0");
+        const d = pad(date.getDate());
+        const m = pad(date.getMonth() + 1);
+        const y = date.getFullYear();
+        const hh = pad(date.getHours());
+        const mm = pad(date.getMinutes());
+        const ss = pad(date.getSeconds());
+        return `${d}/${m}/${y} ${hh}:${mm}:${ss}`;
+    };
+
+    const prettyDate = expense.expense_date
+        ? formatDate(expense.expense_date)
+        : formatDateTime(expense.date);
 
     return (
-        <div className="expense-detail">
-            <div className="page-actions">
+        <div className="expense-detail page-container">
+            <div className="page-actions" style={{ justifyContent: "center", gap: "12px" }}>
                 <button className="secondary-button" onClick={() => navigate(-1)}>Back</button>
                 <Link className="primary-button" to={`/expenses/${expense.id}/edit`}>Edit</Link>
                 <button
@@ -124,7 +142,7 @@ function ExpenseDetail({ currentUserId }) {
                                     }
                                 }}
                             >
-                                {deleting ? "Deleting..." : "Yes, delete"}
+                                {deleting ? "Deleting..." : "Delete"}
                             </button>
                             <button className="secondary-button" onClick={() => setConfirmingDelete(false)}>
                                 Cancel
@@ -138,35 +156,37 @@ function ExpenseDetail({ currentUserId }) {
                 <div><strong>Amount:</strong> {formatCurrency(expense.currency, expense.amount)}</div>
                 <div><strong>Category:</strong> {expense.category}</div>
                 <div><strong>Expense Date:</strong> {prettyDate}</div>
-                <div><strong>Recorded At:</strong> {new Date(expense.date).toLocaleString()}</div>
+                <div><strong>Recorded At:</strong> {formatDateTime(expense.date)}</div>
                 <div><strong>Paid By:</strong> {expense.paid_by_display || expense.paid_by_username || `User #${expense.paid_by}`}</div>
                 <div><strong>Added By:</strong> {expense.added_by_display || expense.added_by}</div>
                 <div><strong>Split Method:</strong> {splitMethodLabel}</div>
                 <div><strong>Currency:</strong> {formatCurrency(expense.currency, "")}</div>
             </div>
             <h3>Participants</h3>
-            <table className="split-table">
-                <thead>
-                    <tr>
-                        <th>User</th>
-                        <th>Paid</th>
-                        <th>Owed</th>
-                        <th>Net</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {splitRows.map((row) => (
-                        <tr key={row.key}>
-                            <td>{row.user}</td>
-                            <td>${row.paid.toFixed(2)}</td>
-                            <td>${row.owed.toFixed(2)}</td>
-                            <td className={row.net >= 0 ? "balance-positive" : "balance-negative"}>
-                                {row.net >= 0 ? "+" : "-"}${Math.abs(row.net).toFixed(2)}
-                            </td>
+            <div className="split-table-wrapper">
+                <table className="split-table">
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Paid</th>
+                            <th>Owed</th>
+                            <th>Net</th>
                         </tr>
-                    ))}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        {splitRows.map((row) => (
+                            <tr key={row.key}>
+                                <td>{row.user}</td>
+                                <td>${row.paid.toFixed(2)}</td>
+                                <td>${row.owed.toFixed(2)}</td>
+                                <td className={row.net >= 0 ? "balance-positive" : "balance-negative"}>
+                                    {row.net >= 0 ? "+" : "-"}${Math.abs(row.net).toFixed(2)}
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
         </div>
     );
 }

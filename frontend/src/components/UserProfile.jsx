@@ -64,10 +64,10 @@ const UserProfile = ({ logout }) => {
     };
 
     return (
-        <div className="form-card profile-card full-height-card">
+        <div className="profile-card full-height-card page-container profile-page">
             <h2>User Profile</h2>
             <p className="subtle">Update your name and keep your account info current.</p>
-            <div className="profile-form">
+            <div className="profile-form profile-section">
                 <div className="form-row">
                     <label>First name</label>
                     <input
@@ -94,7 +94,7 @@ const UserProfile = ({ logout }) => {
                 {message && <p className="subtle status-message">{message}</p>}
             </div>
 
-            <div className="profile-form password-block">
+            <div className="profile-form password-block profile-section">
                 <h3>Change Password</h3>
                 <div className="form-row">
                     <label>Current password</label>
@@ -162,7 +162,7 @@ const UserProfile = ({ logout }) => {
                 {pwMessage && <p className="subtle status-message">{pwMessage}</p>}
             </div>
 
-            <div className="profile-form download-block">
+            <div className="profile-form download-block profile-section">
                 <h3>Export your expenses</h3>
                 <div className="form-actions profile-actions">
                     <button
@@ -211,6 +211,7 @@ const UserProfile = ({ logout }) => {
             </div>
 
             <div className="logout-block">
+                <h3>Logout</h3>
                 <button className="secondary-button" onClick={logout}>
                     Logout
                 </button>

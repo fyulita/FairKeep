@@ -24,7 +24,7 @@ function Expenses({ refreshKey, filterUserId, currentUserId, onlyCurrentUser = f
     const formatCurrency = (code, amt) => {
         const num = parseFloat(amt);
         const display = Number.isFinite(num) ? num.toFixed(2) : amt;
-        return `${code}${currencySymbol(code)} ${display}`;
+        return `${code}${currencySymbol(code)}${display}`;
     };
 
     const fetchExpenses = async () => {
@@ -74,22 +74,27 @@ function Expenses({ refreshKey, filterUserId, currentUserId, onlyCurrentUser = f
     }, [expenses, filterUserId, currentUserId, onlyCurrentUser]);
 
     return (
-        <div>
-            <h2>{title}</h2>
+        <div className="page-container">
+            <h2 className="page-title">{title}</h2>
             <div className="expense-list">
                 {filteredExpenses.length > 0 ? (
                     filteredExpenses.map((expense) => {
                         let month = "";
                         let day = "";
+                        let fullDate = "";
                         if (expense.expense_date) {
                             const [y, m, d] = expense.expense_date.split("-");
                             const dateObj = new Date(Number(y), Number(m) - 1, Number(d));
                             month = dateObj.toLocaleString("en-US", { month: "short" });
                             day = Number(d);
+                            const pad = (n) => String(n).padStart(2, "0");
+                            fullDate = `${pad(d)}/${pad(m)}/${y}`;
                         } else {
                             const dateObj = new Date(expense.date);
                             month = dateObj.toLocaleString("en-US", { month: "short" });
                             day = dateObj.getDate();
+                            const pad = (n) => String(n).padStart(2, "0");
+                            fullDate = `${pad(dateObj.getDate())}/${pad(dateObj.getMonth() + 1)}/${dateObj.getFullYear()}`;
                         }
                         const paidByYou = currentUserId && Number(expense.paid_by) === Number(currentUserId);
                         const payerLabel =
@@ -132,17 +137,18 @@ function Expenses({ refreshKey, filterUserId, currentUserId, onlyCurrentUser = f
                                     <div className="expense-sub">
                                         {paidByYou
                                             ? `You paid ${formatCurrency(expense.currency, expense.amount)}`
-                                            : `${payerLabel} paid ${formatCurrency(expense.currency, expense.amount)}`}
+                                            : `${payerLabel} paid ${formatCurrency(expense.currency, expense.amount)}`
+                                        } • {fullDate}
                                     </div>
                                 </div>
                                 <div className="expense-amount">
                                     {counterpartyStatus ? (
                                         <>
                                             {counterpartyStatus === "lent" && (
-                                                <div className="status-text lent">you lent</div>
+                                                <div className="status-text lent keep-color">you lent</div>
                                             )}
                                             {counterpartyStatus === "borrowed" && (
-                                                <div className="status-text borrowed">you borrowed</div>
+                                                <div className="status-text borrowed keep-color">you borrowed</div>
                                             )}
                                             <div className="status-amount">
                                                 {counterpartyAmount !== null ? formatCurrency(expense.currency, counterpartyAmount) : ""}

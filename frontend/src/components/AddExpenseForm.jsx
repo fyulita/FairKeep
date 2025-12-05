@@ -19,6 +19,7 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
     const [splitMethod, setSplitMethod] = useState("");
     const [splitDetails, setSplitDetails] = useState([]);
     const [errorMessage, setErrorMessage] = useState("");
+    const [excessSigns, setExcessSigns] = useState({});
     const [currency, setCurrency] = useState("ARS");
     const [showCurrencyModal, setShowCurrencyModal] = useState(false);
     const [userSearch, setUserSearch] = useState("");
@@ -26,17 +27,17 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
     const currencyLabel = (code) => currencyOptions.find((c) => c.code === code)?.label || code;
     const currencyOptions = [
         { code: "ARS", label: "ARS$", name: "Argentine Peso" },
-        { code: "UYU", label: "UYU$", name: "Uruguayan Peso" },
-        { code: "CLP", label: "CLP$", name: "Chilean Peso" },
-        { code: "MXN", label: "MXN$", name: "Mexican Peso" },
-        { code: "BRL", label: "BRL R$", name: "Brazilian Real" },
-        { code: "USD", label: "USD$", name: "US Dollar" },
-        { code: "EUR", label: "EUR€", name: "Euro" },
-        { code: "GBP", label: "GBP£", name: "British Pound" },
-        { code: "JPY", label: "JPY¥", name: "Japanese Yen" },
-        { code: "PYG", label: "PYG₲", name: "Paraguayan Guarani" },
         { code: "AUD", label: "AUD$", name: "Australian Dollar" },
+        { code: "BRL", label: "BRL R$", name: "Brazilian Real" },
+        { code: "GBP", label: "GBP£", name: "British Pound" },
+        { code: "CLP", label: "CLP$", name: "Chilean Peso" },
+        { code: "EUR", label: "EUR€", name: "Euro" },
+        { code: "JPY", label: "JPY¥", name: "Japanese Yen" },
+        { code: "MXN", label: "MXN$", name: "Mexican Peso" },
+        { code: "PYG", label: "PYG₲", name: "Paraguayan Guarani" },
         { code: "KRW", label: "KRW₩", name: "South Korean Won" },
+        { code: "USD", label: "USD$", name: "US Dollar" },
+        { code: "UYU", label: "UYU$", name: "Uruguayan Peso" },
     ];
 
     const fetchUsers = async () => {
@@ -78,14 +79,20 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
         const allParticipants = [loggedUser?.id, ...participants];
         const amountNumber = parseFloat(amount) || 0;
         const defaultValue = splitMethod === "shares" ? 1 : 0;
-    
+
         const updatedDetails = allParticipants.map((id) => ({
             id,
             value: defaultValue,
         }));
-    
+
         setSplitDetails(updatedDetails);
-    
+        setExcessSigns(
+            updatedDetails.reduce((acc, detail) => {
+                acc[detail.id] = detail.value < 0 || Object.is(detail.value, -0) ? -1 : 1;
+                return acc;
+            }, {})
+        );
+
         // Automatically calculate the last field for "manual" and "percentage"
         if (splitMethod === "manual" || splitMethod === "percentage") {
             const sum = updatedDetails.slice(0, -1).reduce((acc, detail) => acc + detail.value, 0);
@@ -127,12 +134,26 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
                 value: s.value ?? (parseFloat(s.owed_amount) || 0),
             }));
             setSplitDetails(mapped);
+            setExcessSigns(
+                mapped.reduce((acc, detail) => {
+                    acc[detail.id] = detail.value < 0 || Object.is(detail.value, -0) ? -1 : 1;
+                    return acc;
+                }, {})
+            );
         }
     }, [expenseId, initialData, loggedUser]);
 
+    const valueToNumber = (val) => {
+        if (typeof val === "number") return val;
+        const parsed = parseFloat(val);
+        return Number.isFinite(parsed) ? parsed : 0;
+    };
+
     const validateSplitDetails = () => {
-        const sum = splitDetails.reduce((acc, detail) => acc + (detail.value || 0), 0);
-        if (splitMethod === "manual" && sum > parseFloat(amount)) {
+        const sum = splitDetails.reduce((acc, detail) => acc + valueToNumber(detail.value), 0);
+        const amountNumber = parseFloat(amount) || 0;
+
+        if (splitMethod === "manual" && sum > amountNumber) {
             setErrorMessage("The sum of manual amounts cannot exceed the total amount.");
             return false;
         }
@@ -140,52 +161,89 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
             setErrorMessage("The sum of percentages cannot exceed 100.");
             return false;
         }
+        if (splitMethod === "excess" && amountNumber > 0 && Math.abs(sum) > amountNumber) {
+            setErrorMessage("Total excess cannot exceed the total amount (absolute value).");
+            return false;
+        }
         setErrorMessage("");
         return true;
     };
 
     const handleInputChange = (id, value) => {
-        if (/^\d{0,16}(\.\d{0,2})?$/.test(value)) { // Allow numbers with up to 2 decimal points
-            const amountNumber = parseFloat(amount) || 0;
-            const numericValue = Math.max(parseFloat(value) || 0, 0);
-            const updatedDetails = splitDetails.map((detail) =>
-                detail.id === id ? { ...detail, value: numericValue } : detail
+        const allowToggleSign = splitMethod === "excess";
+        const numericPattern = /^\d{0,16}(\.\d{0,2})?$/;
+        if (!numericPattern.test(value)) return; // digits + optional decimal only
+
+        const amountNumber = parseFloat(amount) || 0;
+        const hasAmount = amount !== "" && !Number.isNaN(parseFloat(amount));
+        const parsedValue = parseFloat(value);
+        const numericValue = Number.isFinite(parsedValue) ? Math.max(parsedValue, 0) : 0;
+        const isEmpty = value === "";
+
+        setSplitDetails((prevDetails) => {
+            const currentDetail = prevDetails.find((d) => d.id === id);
+            const isNegativeStored = currentDetail ? currentDetail.value < 0 || Object.is(currentDetail.value, -0) : false;
+            const storedSign = isNegativeStored ? -1 : 1;
+            const currentSign = allowToggleSign ? (excessSigns[id] ?? storedSign) : 1;
+
+            let nextDetails = prevDetails.map((detail) =>
+                detail.id === id
+                    ? { ...detail, value: allowToggleSign ? currentSign * numericValue : isEmpty ? "" : numericValue }
+                    : detail
             );
 
-            if (splitMethod === "manual" || splitMethod === "percentage") {
-                const totalAllocated = updatedDetails
-                    .slice(0, -1) // Exclude the last field
-                    .reduce((acc, detail) => acc + detail.value, 0);
+            if ((splitMethod === "manual" || splitMethod === "percentage") && nextDetails.length > 1) {
+                const targetTotal = splitMethod === "percentage" ? 100 : hasAmount ? amountNumber : null;
+                if (targetTotal !== null) {
+                    const editedIndex = nextDetails.findIndex((detail) => detail.id === id);
+                    const balancerIndex = nextDetails.findIndex((_, idx) => idx !== editedIndex);
 
-                // Update the last field dynamically
-                const lastFieldIndex = updatedDetails.length - 1;
-                updatedDetails[lastFieldIndex] = {
-                    ...updatedDetails[lastFieldIndex],
-                    value: splitMethod === "manual"
-                        ? Math.max(amountNumber - totalAllocated, 0) // Remaining amount
-                        : Math.max(100 - totalAllocated, 0), // Remaining percentage
-                };
+                    if (editedIndex !== -1 && balancerIndex !== -1) {
+                        const otherSum = nextDetails.reduce((acc, detail, idx) => {
+                            if (idx === editedIndex || idx === balancerIndex) return acc;
+                            return acc + valueToNumber(detail.value);
+                        }, 0);
+
+                        const maxForEdited = Math.max(targetTotal - otherSum, 0);
+                        const editedValue = Math.min(numericValue, maxForEdited);
+                        nextDetails[editedIndex] = { ...nextDetails[editedIndex], value: isEmpty ? "" : editedValue };
+
+                        const remaining = Math.max(targetTotal - (otherSum + editedValue), 0);
+                        nextDetails[balancerIndex] = {
+                            ...nextDetails[balancerIndex],
+                            value: parseFloat(remaining.toFixed(2)),
+                        };
+                    }
+                }
+            } else if (splitMethod === "excess" && hasAmount) {
+                const editedIndex = nextDetails.findIndex((detail) => detail.id === id);
+                if (editedIndex !== -1) {
+                    const otherSum = nextDetails.reduce((acc, detail, idx) => {
+                        if (idx === editedIndex) return acc;
+                        return acc + valueToNumber(detail.value);
+                    }, 0);
+                    const maxMagnitude = Math.max(amountNumber - Math.abs(otherSum), 0);
+                    const clamped = Math.min(numericValue, maxMagnitude);
+                    const signedClamped = currentSign === -1 ? -clamped : clamped;
+                    nextDetails[editedIndex] = { ...nextDetails[editedIndex], value: isEmpty ? "" : signedClamped };
+                    setExcessSigns((prev) => ({ ...prev, [id]: currentSign }));
+                }
             }
 
-            // Validate total sum
-            const finalSum = updatedDetails.reduce((acc, detail) => acc + detail.value, 0);
-    
-            if (splitMethod === "manual") {
-                if (finalSum > parseFloat(amount)) {
-                    setErrorMessage("The sum of manual amounts cannot exceed the total amount.");
-                } else {
-                    setErrorMessage(""); // Clear error for valid inputs
-                }
+            const finalSum = nextDetails.reduce((acc, detail) => acc + valueToNumber(detail.value), 0);
+
+            if (splitMethod === "manual" && hasAmount) {
+                setErrorMessage(finalSum > amountNumber ? "The sum of manual amounts cannot exceed the total amount." : "");
             } else if (splitMethod === "percentage") {
-                if (finalSum > 100) {
-                    setErrorMessage("The sum of percentages cannot exceed 100.");
-                } else {
-                    setErrorMessage(""); // Clear error for valid inputs
-                }
+                setErrorMessage(finalSum > 100 ? "The sum of percentages cannot exceed 100." : "");
+            } else if (splitMethod === "excess" && hasAmount) {
+                setErrorMessage(Math.abs(finalSum) > amountNumber ? "Total excess cannot exceed the total amount (absolute value)." : "");
+            } else {
+                setErrorMessage("");
             }
-    
-            setSplitDetails(updatedDetails);
-        }
+
+            return nextDetails;
+        });
     };
 
     const handleSubmit = async (e) => {
@@ -204,26 +262,32 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
 
         let payloadSplits = splitDetails.map((split) => ({
             user: split.id,
-            value: split.value,
-            owed_amount: split.value.toFixed(2),
+            value: valueToNumber(split.value),
+            owed_amount: valueToNumber(split.value).toFixed(2),
             paid_amount: split.id === payerId ? amountNumber.toFixed(2) : "0.00",
         }));
         let paidByOverride = null;
 
-        if (splitMethod === "full_owed" && uniqueParticipants.length === 2) {
+        if (splitMethod === "full_owed" && uniqueParticipants.length >= 2) {
+            const others = uniqueParticipants.filter((id) => id !== payerId);
+            const share = others.length ? amountNumber / others.length : 0;
+            payloadSplits = uniqueParticipants.map((id) => ({
+                user: id,
+                value: others.includes(id) ? share : 0,
+                owed_amount: others.includes(id) ? share.toFixed(2) : "0.00",
+                paid_amount: id === payerId ? amountNumber.toFixed(2) : "0.00",
+            }));
+            paidByOverride = payerId;
+        } else if (splitMethod === "full_owe" && uniqueParticipants.length >= 2) {
             const otherId = uniqueParticipants.find((id) => id !== loggedUser?.id);
-            payloadSplits = [
-                { user: loggedUser.id, value: 0, owed_amount: "0.00", paid_amount: amountNumber.toFixed(2) },
-                { user: otherId, value: 0, owed_amount: amountNumber.toFixed(2), paid_amount: "0.00" },
-            ];
-            paidByOverride = loggedUser.id;
-        } else if (splitMethod === "full_owe" && uniqueParticipants.length === 2) {
-            const otherId = uniqueParticipants.find((id) => id !== loggedUser?.id);
-            payloadSplits = [
-                { user: loggedUser.id, value: 0, owed_amount: amountNumber.toFixed(2), paid_amount: "0.00" },
-                { user: otherId, value: 0, owed_amount: "0.00", paid_amount: amountNumber.toFixed(2) },
-            ];
-            paidByOverride = otherId;
+            const share = uniqueParticipants.length ? amountNumber / uniqueParticipants.length : 0;
+            payloadSplits = uniqueParticipants.map((id) => ({
+                user: id,
+                value: share,
+                owed_amount: id === loggedUser?.id ? share.toFixed(2) : "0.00",
+                paid_amount: id === otherId ? amountNumber.toFixed(2) : "0.00",
+            }));
+            paidByOverride = otherId || payerId;
         }
 
         // Personal expense (only self): create a single split and set payer to self
@@ -273,13 +337,19 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
     const renderSplitDetails = () => {
         const allParticipants = [loggedUser?.id, ...participants];
 
+        const payerId = Number(paidBy) || loggedUser?.id;
+        const payerName = users.find((u) => u.id === payerId)?.display_name || users.find((u) => u.id === payerId)?.username || "Selected payer";
+
         const descriptions = {
             equal: "Split the amount equally among all participants.",
             manual: "Manually specify the amount each participant pays.",
             percentage: "Specify the percentage each participant pays.",
-            shares: "Allocate shares to divide the total proportionally.",
-            excess: "Adjust the total with specified excess contributions.",
-            full_owed: "You cover the full amount; the other person owes you 100%.",
+            shares: "Allocate shares to divide the total proportionally. This is useful when splitting across families of different sizes.",
+            excess: "Adjust with positive/negative excess. This is useful when someone pays extra/less by some amount.",
+            full_owed:
+                payerId === loggedUser?.id
+                    ? "You paid the full amount; everyone else owes you an equal share."
+                    : `${payerName} paid the full amount; everyone else owes them an equal share.`,
             full_owe: "The other person covers the full amount; you owe 100%.",
         };
 
@@ -289,48 +359,45 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
         if (splitMethod === "full_owed" || splitMethod === "full_owe") {
             return <p>{descriptions[splitMethod]}</p>;
         }
-    
-        const calculateLastField = (id) => {
-            const amountNumber = parseFloat(amount) || 0;
-            const otherTotal = splitDetails
-                .filter((detail) => detail.id !== id)
-                .reduce((acc, detail) => acc + (detail.value || 0), 0);
-    
-            if (splitMethod === "manual") {
-                return Math.max(amountNumber - otherTotal, 0);
-            }
-            if (splitMethod === "percentage") {
-                return Math.max(100 - otherTotal, 0);
-            }
-            return splitDetails.find((detail) => detail.id === id)?.value || 0;
-        };
-    
+
         return (
             <div>
                 <p>{descriptions[splitMethod]}</p>
-                {allParticipants.map((id, index) => (
-                    <div key={id}>
-                        <label>
-                            {users.find((user) => user.id === id)?.username || "Unknown"}:
-                        </label>
-                        <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={
-                                index === allParticipants.length - 1 &&
-                                (splitMethod === "manual" || splitMethod === "percentage")
-                                    ? calculateLastField(id)
-                                    : splitDetails.find((detail) => detail.id === id)?.value || 0
-                            }
-                            onChange={(e) => handleInputChange(id, e.target.value)}
-                            disabled={
-                                index === allParticipants.length - 1 &&
-                                (splitMethod === "manual" || splitMethod === "percentage")
-                            }
-                        />
-                    </div>
-                ))}
+                {allParticipants.map((id) => {
+                    const currentValueRaw = splitDetails.find((detail) => detail.id === id)?.value;
+                    const currentValue = currentValueRaw ?? 0;
+                    const isExcess = splitMethod === "excess";
+                    const signFromMap = excessSigns[id] ?? (currentValue < 0 || Object.is(currentValue, -0) ? -1 : 1);
+                    const displayValue = currentValueRaw === "" ? "" : isExcess ? Math.abs(currentValue) : currentValue;
+                    const isNegative = isExcess ? signFromMap === -1 : currentValue < 0 || Object.is(currentValue, -0);
+                    return (
+                        <div key={id} className="split-row">
+                            <label>
+                                {users.find((user) => user.id === id)?.display_name || users.find((user) => user.id === id)?.username || "Unknown"}:
+                            </label>
+                            <div className="split-input-wrap">
+                                {isExcess && (
+                                    <button
+                                        type="button"
+                                        className={`sign-toggle ${isNegative ? "negative" : "positive"}`}
+                                        onClick={() => toggleExcessSign(id)}
+                                        aria-label="Toggle excess sign"
+                                    >
+                                        {isNegative ? "-" : "+"}
+                                    </button>
+                                )}
+                                <input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={displayValue}
+                                    onFocus={() => handleInputFocus(id)}
+                                    onChange={(e) => handleInputChange(id, e.target.value)}
+                                />
+                            </div>
+                        </div>
+                    );
+                })}
                 {errorMessage && <p className="error-message">{errorMessage}</p>}
             </div>
         );
@@ -352,6 +419,39 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
         });
     };
 
+    const handleInputFocus = (id) => {
+        setSplitDetails((prev) =>
+            prev.map((detail) =>
+                detail.id === id && (detail.value === 0 || detail.value === "0")
+                    ? { ...detail, value: "" }
+                    : detail
+            )
+        );
+    };
+
+    const toggleExcessSign = (id) => {
+        if (splitMethod !== "excess") return;
+        const amountNumber = parseFloat(amount) || 0;
+        setSplitDetails((prevDetails) => {
+            const editedIndex = prevDetails.findIndex((detail) => detail.id === id);
+            if (editedIndex === -1) return prevDetails;
+            const otherSum = prevDetails.reduce((acc, detail, idx) => {
+                if (idx === editedIndex) return acc;
+                return acc + (detail.value || 0);
+            }, 0);
+            const maxMagnitude = Math.max(amountNumber - Math.abs(otherSum), 0);
+            const current = prevDetails[editedIndex].value ?? 0;
+            const flipped = -current;
+            const sign = flipped < 0 || Object.is(flipped, -0) ? -1 : 1;
+            const clamped = Math.min(Math.abs(flipped), maxMagnitude);
+            const signedClamped = sign === -1 ? -clamped : clamped;
+            setExcessSigns((prev) => ({ ...prev, [id]: sign }));
+            return prevDetails.map((detail, idx) =>
+                idx === editedIndex ? { ...detail, value: signedClamped } : detail
+            );
+        });
+    };
+
     const displayParticipants = [loggedUser?.id, ...participants].filter(Boolean);
     const filteredUsersStep1 = users
         .filter((u) => u.id !== loggedUser?.id)
@@ -362,8 +462,7 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
             const username = (u.username || "").toLowerCase();
             return display.startsWith(term) || username.startsWith(term);
         });
-
-    const filteredUsers = users
+    const filteredUsersStep2 = users
         .filter((u) => u.id !== loggedUser?.id)
         .filter((u) => {
             const term = userSearch.trim().toLowerCase();
@@ -374,9 +473,9 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
         });
 
     const renderStep1 = () => (
-        <div className="form-card">
-            <h2>Add an expense</h2>
-            <p className="subtle">With you and:</p>
+        <div className="page-container add-expense-screen">
+            <h2 className="add-expense-title">Add an expense</h2>
+            <p className="subtle with-label">With</p>
             <div className="chip-list">
                 <span className="chip self-chip">You</span>
                 {participants.map((id) => {
@@ -489,57 +588,61 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
     );
 
     const renderStep2 = () => (
-        <div className="form-card">
-            <h2>Add an expense</h2>
-            <p className="subtle">With you and:</p>
-            <div className="chip-list">
-                <span className="chip self-chip">You</span>
-                {participants.map((id) => {
-                    const u = users.find((user) => user.id === id);
-                    return (
+        <div className="page-container add-expense-screen">
+            <h2 className="add-expense-title">Add an expense</h2>
+            <div className="add-expense-top">
+                <div className="with-row">
+                    <p className="subtle with-label">With</p>
+                    <div className="chip-list inline-chips">
+                        <span className="chip self-chip">You</span>
+                        {participants.map((id) => {
+                            const u = users.find((user) => user.id === id);
+                            return (
+                                <button
+                                    key={id}
+                                    className="chip chip-active"
+                                    onClick={() => toggleParticipant(id)}
+                                >
+                                    {u?.display_name || u?.username}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+                <div className="search-row">
+                    <input
+                        type="text"
+                        className="search-input"
+                        placeholder="Add more people"
+                        value={userSearch}
+                        onChange={(e) => setUserSearch(e.target.value)}
+                    />
+                    {userSearch && (
                         <button
-                            key={id}
-                            className="chip chip-active"
-                            onClick={() => toggleParticipant(id)}
+                            type="button"
+                            className="clear-button"
+                            onClick={() => setUserSearch("")}
+                            aria-label="Clear search"
                         >
-                            {u?.display_name || u?.username}
+                            ×
                         </button>
-                    );
-                })}
-            </div>
-            <div className="search-row">
-                <input
-                    type="text"
-                    className="search-input"
-                    placeholder="Add more people"
-                    value={userSearch}
-                    onChange={(e) => setUserSearch(e.target.value)}
-                />
-                {userSearch && (
-                    <button
-                        type="button"
-                        className="clear-button"
-                        onClick={() => setUserSearch("")}
-                        aria-label="Clear search"
-                    >
-                        ×
-                    </button>
+                    )}
+                </div>
+                {userSearch.trim() && (
+                    <div className="search-results">
+                        {filteredUsersStep2.length === 0 && <p className="subtle">No matches</p>}
+                        {filteredUsersStep2.map((u) => (
+                            <div
+                                key={u.id}
+                                className="user-result"
+                                onClick={() => toggleParticipant(u.id)}
+                            >
+                                {u.display_name || u.username}
+                            </div>
+                        ))}
+                    </div>
                 )}
             </div>
-            {userSearch.trim() && (
-                <div className="search-results">
-                    {filteredUsers.length === 0 && <p className="subtle">No matches</p>}
-                    {filteredUsers.map((u) => (
-                        <div
-                            key={u.id}
-                            className="user-result"
-                            onClick={() => toggleParticipant(u.id)}
-                        >
-                            {u.display_name || u.username}
-                        </div>
-                    ))}
-                </div>
-            )}
             <form className="expense-form" onSubmit={handleSubmit}>
                 <div>
                     <label>Description</label>
@@ -556,25 +659,27 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
                         <label>Amount</label>
                         <input
                             type="number"
+                            inputMode="decimal"
+                            pattern="[0-9]*[.,]?[0-9]*"
                             value={amount}
                             onChange={(e) => setAmount(e.target.value)}
                             required
                         />
                     </div>
                 </div>
-                <div>
-                    <label>Category</label>
-                    <select value={category} onChange={(e) => setCategory(e.target.value)} required>
-                        <option value="">Select Category</option>
-                        <option value="Home Supplies">Home Supplies</option>
-                        <option value="Food">Food</option>
-                        <option value="Transport">Transport</option>
-                        <option value="Entertainment">Entertainment</option>
-                        <option value="Periodic Expenses">Periodic Expenses</option>
-                        <option value="Other">Other</option>
-                    </select>
-                </div>
                 <div className="two-col">
+                    <div>
+                        <label>Category</label>
+                        <select value={category} onChange={(e) => setCategory(e.target.value)} required>
+                            <option value="">Select Category</option>
+                            <option value="Home Supplies">Home Supplies</option>
+                            <option value="Food">Food</option>
+                            <option value="Transport">Transport</option>
+                            <option value="Entertainment">Entertainment</option>
+                            <option value="Periodic Expenses">Periodic Expenses</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
                     <div>
                         <label>Expense Date</label>
                         <input
@@ -584,54 +689,67 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
                             required
                         />
                     </div>
-                    {displayParticipants.length > 1 && (
-                        <div>
-                            <label>Paid By</label>
-                            <select value={paidBy} onChange={(e) => setPaidBy(e.target.value)} required>
-                                <option value="">Select Payer</option>
-                                {displayParticipants.map((pid) => {
-                                    const u = users.find((x) => x.id === pid) || loggedUser;
-                                    return (
-                                        <option key={pid} value={pid}>
-                                            {u?.display_name || u?.username}
-                                        </option>
-                                    );
-                                })}
-                            </select>
-                        </div>
-                    )}
                 </div>
 
                 {displayParticipants.length > 1 && (
                     <>
-                        <div className="split-quick">
-                            <p>Split options</p>
-                            <div className="split-buttons">
-                                <button type="button" className={splitMethod === "equal" ? "split-btn active" : "split-btn"} onClick={() => setSplitMethod("equal")}>Equal</button>
-                                <button type="button" className={splitMethod === "manual" ? "split-btn active" : "split-btn"} onClick={() => setSplitMethod("manual")}>Exact</button>
-                                <button type="button" className={splitMethod === "percentage" ? "split-btn active" : "split-btn"} onClick={() => setSplitMethod("percentage")}>%</button>
-                                <button type="button" className={splitMethod === "shares" ? "split-btn active" : "split-btn"} onClick={() => setSplitMethod("shares")}>Shares</button>
-                                {participants.length === 1 && (
-                                    <>
-                                        <button type="button" className={splitMethod === "full_owed" ? "split-btn active" : "split-btn"} onClick={() => setSplitMethod("full_owed")}>You owed 100%</button>
-                                        <button type="button" className={splitMethod === "full_owe" ? "split-btn active" : "split-btn"} onClick={() => setSplitMethod("full_owe")}>You owe 100%</button>
-                                    </>
-                                )}
-                                <button type="button" className={splitMethod === "excess" ? "split-btn active" : "split-btn"} onClick={() => setSplitMethod("excess")}>Adjust</button>
+                        <div className="two-col">
+                            <div>
+                                <label>Paid By</label>
+                                <select value={paidBy} onChange={(e) => setPaidBy(e.target.value)} required>
+                                    <option value="">Select Payer</option>
+                                    {displayParticipants.map((pid) => {
+                                        const u = users.find((x) => x.id === pid) || loggedUser;
+                                        return (
+                                            <option key={pid} value={pid}>
+                                                {u?.display_name || u?.username}
+                                            </option>
+                                        );
+                                    })}
+                                </select>
+                            </div>
+                            <div>
+                                <label>Split Options</label>
+                                <select
+                                    value={splitMethod}
+                                    onChange={(e) => setSplitMethod(e.target.value)}
+                                    required
+                                >
+                                    <option value="">Select split</option>
+                                    {Number(paidBy || loggedUser?.id) === loggedUser?.id ? (
+                                        <>
+                                            <option value="equal">Equal Splitting</option>
+                                            <option value="full_owed">You are owed the Full Amount</option>
+                                            <option value="manual">Exact Amount</option>
+                                            <option value="percentage">By Percentages</option>
+                                            <option value="shares">By Shares</option>
+                                            <option value="excess">Excess Amount</option>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <option value="equal">Equal Splitting</option>
+                                            <option value="full_owed">They are owed the Full Amount</option>
+                                            <option value="manual">Exact Amount</option>
+                                            <option value="percentage">By Percentages</option>
+                                            <option value="shares">By Shares</option>
+                                            <option value="excess">Excess Amount</option>
+                                        </>
+                                    )}
+                                </select>
                             </div>
                         </div>
 
                         {splitMethod && <div>{renderSplitDetails()}</div>}
                     </>
                 )}
-                <div className="form-actions">
-                    <button type="submit">Save</button>
-                    {onCancel && (
-                        <button type="button" className="secondary-button" onClick={onCancel}>
-                            Cancel
-                        </button>
-                    )}
-                </div>
+            <div className="form-actions centered-actions">
+                <button type="submit">Save</button>
+                {onCancel && (
+                    <button type="button" className="secondary-button" onClick={onCancel}>
+                        Cancel
+                    </button>
+                )}
+            </div>
             </form>
             {renderCurrencyModal()}
         </div>
