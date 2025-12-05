@@ -32,4 +32,4 @@ frontend/dist/
 # Local files
 *.log
 docker-compose.yml
-todo.txt
+todo.md
