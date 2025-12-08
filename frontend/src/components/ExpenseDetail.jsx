@@ -176,7 +176,7 @@ function ExpenseDetail({ currentUserId }) {
                     <tbody>
                         {splitRows.map((row) => (
                             <tr key={row.key}>
-                                <td>{row.user}</td>
+                                <td className="name-cell">{row.user}</td>
                                 <td>${row.paid.toFixed(2)}</td>
                                 <td>${row.owed.toFixed(2)}</td>
                                 <td className={row.net >= 0 ? "balance-positive" : "balance-negative"}>

@@ -343,10 +343,21 @@ h1 {
   text-align: left;
   border-bottom: 1px solid var(--card-border);
   word-break: break-word;
+  font-size: 14px;
 }
 
 .split-table th {
   background: var(--secondary);
+}
+
+.split-table th:not(:last-child),
+.split-table td:not(:last-child) {
+  border-right: 1px solid var(--card-border);
+}
+
+.split-table td.name-cell {
+  white-space: normal;
+  line-height: 1.2;
 }
 
 .split-table tr:last-child td {
@@ -356,6 +367,20 @@ h1 {
 .split-table .balance-positive,
 .split-table .balance-negative {
   white-space: nowrap;
+}
+
+@media (max-width: 520px) {
+  .split-table {
+    min-width: 280px;
+  }
+  .split-table th,
+  .split-table td {
+    padding: 6px;
+    font-size: 12px;
+  }
+  .split-table td.name-cell {
+    font-size: 12px;
+  }
 }
 
 .activities {
@@ -1017,7 +1042,7 @@ h1 {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 12px 12px 24px 12px;
+  padding: 12px 0 24px 0;
   width: 100%;
   box-sizing: border-box;
   margin: 0 auto;
@@ -1029,9 +1054,10 @@ h1 {
   flex-direction: column;
   gap: 12px;
   width: 100%;
-  max-width: var(--content-max);
+  max-width: 540px;
   margin: 0 auto;
-  padding: 0 8px;
+  padding: 0;
+  align-items: center;
 }
 
 .user-pill {
@@ -1052,7 +1078,7 @@ h1 {
   text-align: left;
   box-sizing: border-box;
   align-items: flex-start;
-  max-width: var(--content-max);
+  max-width: 520px;
   margin: 0 auto;
 }
 
@@ -1252,41 +1278,4 @@ h1 {
 
 .split-input-wrap input {
   flex: 1;
-}
-
-.sign-toggle {
-  border: none;
-  color: #fff;
-  min-width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: transform 0.1s ease, opacity 0.15s ease;
-  padding: 0 10px;
-}
-
-.sign-toggle.positive {
-  background: var(--success);
-}
-
-.sign-toggle.negative {
-  background: var(--danger);
-}
-
-.sign-toggle:active {
-  transform: scale(0.97);
-}
-
-.sign-toggle:hover {
-  opacity: 0.92;
-  background: inherit;
-}
-
-.sign-toggle.positive:hover {
-  background: var(--success);
-}
-
-.sign-toggle.negative:hover {
-  background: var(--danger);
 }

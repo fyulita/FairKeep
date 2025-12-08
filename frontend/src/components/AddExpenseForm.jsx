@@ -19,7 +19,6 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
     const [splitMethod, setSplitMethod] = useState("");
     const [splitDetails, setSplitDetails] = useState([]);
     const [errorMessage, setErrorMessage] = useState("");
-    const [excessSigns, setExcessSigns] = useState({});
     const [currency, setCurrency] = useState("ARS");
     const [showCurrencyModal, setShowCurrencyModal] = useState(false);
     const [userSearch, setUserSearch] = useState("");
@@ -77,7 +76,7 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
 
     const resetSplitDetails = () => {
         const allParticipants = [loggedUser?.id, ...participants];
-        const amountNumber = parseFloat(amount) || 0;
+        const amountNumber = valueToNumber(amount);
         const defaultValue = splitMethod === "shares" ? 1 : 0;
 
         const updatedDetails = allParticipants.map((id) => ({
@@ -86,12 +85,6 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
         }));
 
         setSplitDetails(updatedDetails);
-        setExcessSigns(
-            updatedDetails.reduce((acc, detail) => {
-                acc[detail.id] = detail.value < 0 || Object.is(detail.value, -0) ? -1 : 1;
-                return acc;
-            }, {})
-        );
 
         // Automatically calculate the last field for "manual" and "percentage"
         if (splitMethod === "manual" || splitMethod === "percentage") {
@@ -134,24 +127,20 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
                 value: s.value ?? (parseFloat(s.owed_amount) || 0),
             }));
             setSplitDetails(mapped);
-            setExcessSigns(
-                mapped.reduce((acc, detail) => {
-                    acc[detail.id] = detail.value < 0 || Object.is(detail.value, -0) ? -1 : 1;
-                    return acc;
-                }, {})
-            );
         }
     }, [expenseId, initialData, loggedUser]);
 
+    const normalizeDecimalInput = (val) => (typeof val === "string" ? val.replace(/,/g, ".") : val);
     const valueToNumber = (val) => {
         if (typeof val === "number") return val;
-        const parsed = parseFloat(val);
+        const parsed = parseFloat(normalizeDecimalInput(val));
         return Number.isFinite(parsed) ? parsed : 0;
     };
+    const roundToTwo = (num) => Math.round((num + Number.EPSILON) * 100) / 100;
 
     const validateSplitDetails = () => {
         const sum = splitDetails.reduce((acc, detail) => acc + valueToNumber(detail.value), 0);
-        const amountNumber = parseFloat(amount) || 0;
+        const amountNumber = valueToNumber(amount);
 
         if (splitMethod === "manual" && sum > amountNumber) {
             setErrorMessage("The sum of manual amounts cannot exceed the total amount.");
@@ -170,27 +159,41 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
     };
 
     const handleInputChange = (id, value) => {
-        const allowToggleSign = splitMethod === "excess";
-        const numericPattern = /^\d{0,16}(\.\d{0,2})?$/;
-        if (!numericPattern.test(value)) return; // digits + optional decimal only
+        const allowToggleSign = false;
+        const rawInput = value || "";
+        const isShares = splitMethod === "shares";
+        const decimalPattern = /^\d*(?:[.,]\d{0,2})?$/;
+        const sharesPattern = /^\d*$/;
 
-        const amountNumber = parseFloat(amount) || 0;
-        const hasAmount = amount !== "" && !Number.isNaN(parseFloat(amount));
-        const parsedValue = parseFloat(value);
-        const numericValue = Number.isFinite(parsedValue) ? Math.max(parsedValue, 0) : 0;
-        const isEmpty = value === "";
+        if (rawInput !== "") {
+            if (isShares) {
+                if (!sharesPattern.test(rawInput)) return;
+            } else if (!decimalPattern.test(rawInput)) {
+                return;
+            }
+        }
+
+        const amountNumber = valueToNumber(amount) || 0;
+        const hasAmount = amount !== "" && !Number.isNaN(valueToNumber(amount));
+        const isEmpty = rawInput === "";
+
+        const numericValue = isEmpty
+            ? ""
+            : isShares
+                ? Math.max(parseInt(rawInput, 10) || 0, 1)
+                : Math.max(parseFloat(normalizeDecimalInput(rawInput)) || 0, 0);
 
         setSplitDetails((prevDetails) => {
             const currentDetail = prevDetails.find((d) => d.id === id);
-            const isNegativeStored = currentDetail ? currentDetail.value < 0 || Object.is(currentDetail.value, -0) : false;
-            const storedSign = isNegativeStored ? -1 : 1;
-            const currentSign = allowToggleSign ? (excessSigns[id] ?? storedSign) : 1;
+            const currentSign = 1;
 
-            let nextDetails = prevDetails.map((detail) =>
-                detail.id === id
-                    ? { ...detail, value: allowToggleSign ? currentSign * numericValue : isEmpty ? "" : numericValue }
-                    : detail
-            );
+            let nextDetails = prevDetails.map((detail) => {
+                if (detail.id !== id) return detail;
+                if (isShares) {
+                    return { ...detail, value: isEmpty ? "" : String(numericValue) };
+                }
+                return { ...detail, value: isEmpty ? "" : rawInput };
+            });
 
             if ((splitMethod === "manual" || splitMethod === "percentage") && nextDetails.length > 1) {
                 const targetTotal = splitMethod === "percentage" ? 100 : hasAmount ? amountNumber : null;
@@ -205,13 +208,22 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
                         }, 0);
 
                         const maxForEdited = Math.max(targetTotal - otherSum, 0);
-                        const editedValue = Math.min(numericValue, maxForEdited);
-                        nextDetails[editedIndex] = { ...nextDetails[editedIndex], value: isEmpty ? "" : editedValue };
+                        const numericEdited = valueToNumber(numericValue);
+                        const clampedEdited = Math.min(numericEdited, maxForEdited);
+                        const editedValueStr = isEmpty
+                            ? ""
+                            : numericEdited > maxForEdited
+                                ? roundToTwo(clampedEdited).toFixed(2)
+                                : rawInput;
+                        nextDetails[editedIndex] = {
+                            ...nextDetails[editedIndex],
+                            value: editedValueStr,
+                        };
 
-                        const remaining = Math.max(targetTotal - (otherSum + editedValue), 0);
+                        const remaining = Math.max(targetTotal - (otherSum + clampedEdited), 0);
                         nextDetails[balancerIndex] = {
                             ...nextDetails[balancerIndex],
-                            value: parseFloat(remaining.toFixed(2)),
+                            value: roundToTwo(remaining).toFixed(2),
                         };
                     }
                 }
@@ -223,10 +235,16 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
                         return acc + valueToNumber(detail.value);
                     }, 0);
                     const maxMagnitude = Math.max(amountNumber - Math.abs(otherSum), 0);
-                    const clamped = Math.min(numericValue, maxMagnitude);
-                    const signedClamped = currentSign === -1 ? -clamped : clamped;
-                    nextDetails[editedIndex] = { ...nextDetails[editedIndex], value: isEmpty ? "" : signedClamped };
-                    setExcessSigns((prev) => ({ ...prev, [id]: currentSign }));
+                    const numericEdited = valueToNumber(numericValue);
+                    const clamped = Math.min(numericEdited, maxMagnitude);
+                    nextDetails[editedIndex] = {
+                        ...nextDetails[editedIndex],
+                        value: isEmpty
+                            ? ""
+                            : numericEdited > maxMagnitude
+                                ? roundToTwo(clamped).toFixed(2)
+                                : rawInput,
+                    };
                 }
             }
 
@@ -253,7 +271,7 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
 
         const allParticipants = [loggedUser?.id, ...participants].filter(Boolean);
         const uniqueParticipants = Array.from(new Set(allParticipants));
-        const amountNumber = parseFloat(amount) || 0;
+        const amountNumber = valueToNumber(amount) || 0;
 
         // Default payer: logged user if not set
         const payerId = uniqueParticipants.length > 1
@@ -288,6 +306,20 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
                 paid_amount: id === otherId ? amountNumber.toFixed(2) : "0.00",
             }));
             paidByOverride = otherId || payerId;
+        } else if (splitMethod === "excess" && uniqueParticipants.length > 0) {
+            const participantsCount = uniqueParticipants.length;
+            const totalExcess = splitDetails.reduce((acc, split) => acc + valueToNumber(split.value), 0);
+            const equalBase = (amountNumber - totalExcess) / participantsCount;
+            payloadSplits = uniqueParticipants.map((id) => {
+                const excessValue = valueToNumber(splitDetails.find((s) => s.id === id)?.value);
+                const owed = excessValue + equalBase;
+                return {
+                    user: id,
+                    value: owed,
+                    owed_amount: owed.toFixed(2),
+                    paid_amount: id === payerId ? amountNumber.toFixed(2) : "0.00",
+                };
+            });
         }
 
         // Personal expense (only self): create a single split and set payer to self
@@ -367,29 +399,17 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
                     const currentValueRaw = splitDetails.find((detail) => detail.id === id)?.value;
                     const currentValue = currentValueRaw ?? 0;
                     const isExcess = splitMethod === "excess";
-                    const signFromMap = excessSigns[id] ?? (currentValue < 0 || Object.is(currentValue, -0) ? -1 : 1);
-                    const displayValue = currentValueRaw === "" ? "" : isExcess ? Math.abs(currentValue) : currentValue;
-                    const isNegative = isExcess ? signFromMap === -1 : currentValue < 0 || Object.is(currentValue, -0);
+                    const displayValue = currentValueRaw === "" ? "" : currentValueRaw;
                     return (
                         <div key={id} className="split-row">
                             <label>
                                 {users.find((user) => user.id === id)?.display_name || users.find((user) => user.id === id)?.username || "Unknown"}:
                             </label>
                             <div className="split-input-wrap">
-                                {isExcess && (
-                                    <button
-                                        type="button"
-                                        className={`sign-toggle ${isNegative ? "negative" : "positive"}`}
-                                        onClick={() => toggleExcessSign(id)}
-                                        aria-label="Toggle excess sign"
-                                    >
-                                        {isNegative ? "-" : "+"}
-                                    </button>
-                                )}
                                 <input
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
+                                    type="text"
+                                    inputMode="decimal"
+                                    pattern="[0-9]*[.,]?[0-9]*"
                                     value={displayValue}
                                     onFocus={() => handleInputFocus(id)}
                                     onChange={(e) => handleInputChange(id, e.target.value)}
@@ -427,29 +447,6 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
                     : detail
             )
         );
-    };
-
-    const toggleExcessSign = (id) => {
-        if (splitMethod !== "excess") return;
-        const amountNumber = parseFloat(amount) || 0;
-        setSplitDetails((prevDetails) => {
-            const editedIndex = prevDetails.findIndex((detail) => detail.id === id);
-            if (editedIndex === -1) return prevDetails;
-            const otherSum = prevDetails.reduce((acc, detail, idx) => {
-                if (idx === editedIndex) return acc;
-                return acc + (detail.value || 0);
-            }, 0);
-            const maxMagnitude = Math.max(amountNumber - Math.abs(otherSum), 0);
-            const current = prevDetails[editedIndex].value ?? 0;
-            const flipped = -current;
-            const sign = flipped < 0 || Object.is(flipped, -0) ? -1 : 1;
-            const clamped = Math.min(Math.abs(flipped), maxMagnitude);
-            const signedClamped = sign === -1 ? -clamped : clamped;
-            setExcessSigns((prev) => ({ ...prev, [id]: sign }));
-            return prevDetails.map((detail, idx) =>
-                idx === editedIndex ? { ...detail, value: signedClamped } : detail
-            );
-        });
     };
 
     const displayParticipants = [loggedUser?.id, ...participants].filter(Boolean);
@@ -658,9 +655,9 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
                     <div className="amount-field">
                         <label>Amount</label>
                         <input
-                            type="number"
+                            type="text"
                             inputMode="decimal"
-                            pattern="[0-9]*[.,]?[0-9]*"
+                            pattern="[0-9]*[.,]?[0-9]{0,2}"
                             value={amount}
                             onChange={(e) => setAmount(e.target.value)}
                             required
