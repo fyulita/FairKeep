@@ -17,7 +17,26 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from expenses.views import ExpenseViewSet, login_view, logout_view, csrf_token_view, check_session_view, balances, user_list, activities, settle_up, user_detail, change_password, export_expenses
+from expenses.views import (
+    ExpenseViewSet,
+    login_view,
+    logout_view,
+    csrf_token_view,
+    check_session_view,
+    balances,
+    user_list,
+    activities,
+    settle_up,
+    user_detail,
+    change_password,
+    export_expenses,
+    contacts_list,
+    contact_search,
+    contact_request_create,
+    contact_requests,
+    contact_request_accept,
+    contact_delete,
+)
 
 router = DefaultRouter()
 router.register(r'expenses', ExpenseViewSet)
@@ -36,4 +55,10 @@ urlpatterns = [
     path('api/export-expenses/', export_expenses, name='export_expenses'),
     path('api/activities/', activities, name='activities'),
     path('api/settle/', settle_up, name='settle_up'),
+    path('api/contacts/', contacts_list, name='contacts_list'),
+    path('api/contacts/search/', contact_search, name='contact_search'),
+    path('api/contacts/requests/', contact_requests, name='contact_requests'),
+    path('api/contacts/requests/create/', contact_request_create, name='contact_request_create'),
+    path('api/contacts/requests/<int:pk>/accept/', contact_request_accept, name='contact_request_accept'),
+    path('api/contacts/delete/', contact_delete, name='contact_delete'),
 ]

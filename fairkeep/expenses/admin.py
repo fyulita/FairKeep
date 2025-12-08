@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.models import User
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
-from .models import Expense, ExpenseSplit
+from .models import Expense, ExpenseSplit, ContactRequest
 
 
 @admin.register(Expense)
@@ -16,6 +16,20 @@ class ExpenseAdmin(admin.ModelAdmin):
 class ExpenseSplitAdmin(admin.ModelAdmin):
     list_display = ("expense", "user", "paid_amount", "owed_amount")
     search_fields = ("expense__name", "user__username")
+
+
+@admin.register(ContactRequest)
+class ContactRequestAdmin(admin.ModelAdmin):
+    list_display = ("from_user", "to_user", "status", "created_at")
+    list_filter = ("status", "created_at")
+    search_fields = (
+        "from_user__username",
+        "to_user__username",
+        "from_user__first_name",
+        "from_user__last_name",
+        "to_user__first_name",
+        "to_user__last_name",
+    )
 
 # Remove email from admin forms/list to avoid storing/editing redundant data
 admin.site.unregister(User)

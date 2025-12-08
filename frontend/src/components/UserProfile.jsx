@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import api from "../api/axiosConfig";
 
 const UserProfile = ({ logout }) => {
@@ -15,6 +16,7 @@ const UserProfile = ({ logout }) => {
     const [exporting, setExporting] = useState(false);
     const [exportMessage, setExportMessage] = useState("");
     const [username, setUsername] = useState("");
+    const navigate = useNavigate();
 
     useEffect(() => {
         const fetchUser = async () => {
@@ -208,6 +210,16 @@ const UserProfile = ({ logout }) => {
                     </button>
                 </div>
                 {exportMessage && <p className="subtle status-message">{exportMessage}</p>}
+            </div>
+
+            <div className="profile-form profile-section">
+                <h3>Contacts</h3>
+                <p className="subtle">Add people to share expenses with.</p>
+                <div className="form-actions profile-actions">
+                    <button className="primary-button" onClick={() => navigate("/contacts")}>
+                        Add Contact
+                    </button>
+                </div>
             </div>
 
             <div className="logout-block">

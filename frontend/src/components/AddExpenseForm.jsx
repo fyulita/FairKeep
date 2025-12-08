@@ -41,10 +41,12 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
 
     const fetchUsers = async () => {
         try {
-            const response = await api.get("/users/");
-            const sessionResponse = await api.get("/check-session/");
-            setUsers(response.data);
+            const [sessionResponse, contactsResponse] = await Promise.all([
+                api.get("/check-session/"),
+                api.get("/contacts/"),
+            ]);
             setLoggedUser(sessionResponse.data);
+            setUsers(contactsResponse.data || []);
         } catch (error) {
             console.error("Error fetching users:", error);
         }
@@ -362,7 +364,25 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
             resetForm();
         } catch (error) {
             console.error("Error adding expense:", error);
-            setErrorMessage("Failed to add expense. Please try again.");
+            const data = error.response?.data;
+            let msg = "Failed to add expense. Please try again.";
+            if (typeof data === "string") {
+                msg = data;
+            } else if (Array.isArray(data)) {
+                msg = data.join(", ");
+            } else if (data?.detail) {
+                msg = data.detail;
+            } else if (data?.non_field_errors) {
+                msg = data.non_field_errors.join(", ");
+            } else if (data && typeof data === "object") {
+                const parts = [];
+                Object.values(data).forEach((val) => {
+                    if (Array.isArray(val)) parts.push(val.join(", "));
+                    else if (val) parts.push(String(val));
+                });
+                if (parts.length) msg = parts.join(", ");
+            }
+            setErrorMessage(msg);
         }
     };
 
@@ -423,7 +443,7 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
         );
     };
 
-    if (!loggedUser || !users.length) {
+    if (!loggedUser) {
         return <p>Loading form...</p>;
     }
 
@@ -455,9 +475,8 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
         .filter((u) => {
             const term = userSearch.trim().toLowerCase();
             if (!term) return true;
-            const display = (u.display_name || "").toLowerCase();
-            const username = (u.username || "").toLowerCase();
-            return display.startsWith(term) || username.startsWith(term);
+                const display = (u.display_name || "").toLowerCase();
+                return display.startsWith(term);
         });
     const filteredUsersStep2 = users
         .filter((u) => u.id !== loggedUser?.id)
@@ -465,8 +484,7 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
             const term = userSearch.trim().toLowerCase();
             if (!term) return false;
             const display = (u.display_name || "").toLowerCase();
-            const username = (u.username || "").toLowerCase();
-            return display.startsWith(term) || username.startsWith(term);
+            return display.startsWith(term);
         });
 
     const renderStep1 = () => (
@@ -508,7 +526,21 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
                 )}
             </div>
             <div className="search-results">
-                {filteredUsersStep1.length === 0 && <p className="subtle">No matches</p>}
+                {users.length === 0 && (
+                    <div className="no-contacts-block">
+                        <p className="subtle center-text">
+                            It looks like you don't have any Contacts. Do you wish to add one?
+                        </p>
+                        <button
+                            type="button"
+                            className="primary-button"
+                            onClick={() => (window.location.href = "/contacts")}
+                        >
+                            Add Contact
+                        </button>
+                    </div>
+                )}
+                {users.length > 0 && filteredUsersStep1.length === 0 && <p className="subtle">No matches</p>}
                 {filteredUsersStep1.map((u) => (
                     <div
                         key={u.id}
@@ -739,6 +771,7 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
                         {splitMethod && <div>{renderSplitDetails()}</div>}
                     </>
                 )}
+            {errorMessage && <p className="error-message center-text">{errorMessage}</p>}
             <div className="form-actions centered-actions">
                 <button type="submit">Save</button>
                 {onCancel && (

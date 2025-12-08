@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Expense, ExpenseSplit
+from .models import Expense, ExpenseSplit, ContactRequest
 from django.contrib.auth.models import User
 from .models import Activity
 
@@ -109,3 +109,24 @@ class ActivitySerializer(serializers.ModelSerializer):
             "KRW": "₩",
         }
         return mapping.get(obj.currency, obj.currency)
+
+
+class UserPublicSerializer(serializers.ModelSerializer):
+    display_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = ["id", "username", "first_name", "last_name", "display_name"]
+
+    def get_display_name(self, obj):
+        full = obj.get_full_name()
+        return full if full else obj.username
+
+
+class ContactRequestSerializer(serializers.ModelSerializer):
+    from_user = UserPublicSerializer(read_only=True)
+    to_user = UserPublicSerializer(read_only=True)
+
+    class Meta:
+        model = ContactRequest
+        fields = ["id", "from_user", "to_user", "status", "created_at", "updated_at"]

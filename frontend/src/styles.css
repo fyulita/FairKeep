@@ -907,6 +907,10 @@ h1 {
   border-radius: 8px;
   background: #fff;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
 }
 
 .user-result:hover {
@@ -926,6 +930,39 @@ h1 {
   background: var(--secondary);
   border: 1px solid var(--card-border);
   font-size: 13px;
+}
+
+.row-space {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.small-button {
+  padding: 6px 10px;
+  min-width: 80px;
+}
+
+.small {
+  font-size: 12px;
+  margin-left: 6px;
+}
+
+.full-width-item {
+  width: 100%;
+}
+
+.no-contacts-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.center-text {
+  text-align: center;
 }
 
 .self-pill {

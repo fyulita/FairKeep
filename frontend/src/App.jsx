@@ -11,6 +11,7 @@ import Activities from "./components/Activities";
 import AddExpenseForm from "./components/AddExpenseForm";
 import BottomNav from "./components/BottomNav";
 import UserProfile from "./components/UserProfile";
+import Contacts from "./components/Contacts";
 import './styles.css';
 
 function App() {
@@ -130,6 +131,10 @@ function App() {
                 <Route
                     path="/user"
                     element={<UserProfile logout={logout} />}
+                />
+                <Route
+                    path="/contacts"
+                    element={<Contacts />}
                 />
                 <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

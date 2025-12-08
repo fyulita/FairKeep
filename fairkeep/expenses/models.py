@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
+from django.db.models import Q
 
 # Create your models here.
 class Expense(models.Model):
@@ -87,3 +88,35 @@ class Activity(models.Model):
 
     def __str__(self):
         return f"{self.action} - {self.expense_name}"
+
+
+class ContactRequest(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('accepted', 'Accepted'),
+        ('rejected', 'Rejected'),
+    ]
+
+    from_user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='contact_requests_sent')
+    to_user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='contact_requests_received')
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['from_user', 'to_user'], name='unique_contact_request'),
+        ]
+
+    def __str__(self):
+        return f"{self.from_user} -> {self.to_user} ({self.status})"
+
+    @staticmethod
+    def accepted_contacts(user):
+        accepted = ContactRequest.objects.filter(
+            status='accepted'
+        ).filter(Q(from_user=user) | Q(to_user=user))
+        contact_ids = set()
+        for req in accepted:
+            contact_ids.add(req.from_user_id if req.to_user_id == user.id else req.to_user_id)
+        return contact_ids

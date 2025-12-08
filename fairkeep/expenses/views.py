@@ -1,4 +1,6 @@
 from django.db import transaction, models
+from django.db.models.functions import Concat
+from django.db.models import Value
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import authenticate, login, logout
@@ -15,8 +17,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.exceptions import ValidationError
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
-from .models import Expense, ExpenseSplit, Activity
-from .serializers import ExpenseSerializer, ActivitySerializer
+from .models import Expense, ExpenseSplit, Activity, ContactRequest
+from .serializers import ExpenseSerializer, ActivitySerializer, ContactRequestSerializer, UserPublicSerializer
 import csv
 
 # User detail (GET/PATCH) for profile updates
@@ -160,10 +162,139 @@ def export_expenses(request):
     writer.writerow([now_ts.strftime("%Y-%m-%d %H:%M:%S")] + [""] * (len(header) - 1))
 
     return response
+
+
+def _contact_ids(user):
+    accepted = ContactRequest.objects.filter(
+        status='accepted'
+    ).filter(models.Q(from_user=user) | models.Q(to_user=user))
+    contact_ids = set()
+    for req in accepted:
+        contact_ids.add(req.from_user_id if req.to_user_id == user.id else req.to_user_id)
+    return contact_ids
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def contacts_list(request):
+    contact_ids = _contact_ids(request.user)
+    users = User.objects.filter(id__in=contact_ids).order_by('last_name', 'first_name', 'username')
+    return Response(UserPublicSerializer(users, many=True).data)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def contact_search(request):
+    q = request.GET.get("q", "").strip()
+    if not q:
+        return Response([], status=status.HTTP_200_OK)
+    contact_ids = _contact_ids(request.user)
+    pending_pairs = set()
+    for req in ContactRequest.objects.filter(
+        models.Q(from_user=request.user) | models.Q(to_user=request.user),
+        status='pending'
+    ):
+        pending_pairs.add(req.from_user_id)
+        pending_pairs.add(req.to_user_id)
+
+    qs = User.objects.exclude(id=request.user.id).exclude(id__in=contact_ids)
+    qs = qs.annotate(full_name=Concat('first_name', Value(' '), 'last_name'))
+    qs = qs.filter(
+        models.Q(username__icontains=q)
+        | models.Q(first_name__icontains=q)
+        | models.Q(last_name__icontains=q)
+        | models.Q(full_name__icontains=q)
+    ).order_by('username')[:20]
+
+    results = []
+    for u in qs:
+        results.append({
+            "id": u.id,
+            "username": u.username,
+            "display_name": (u.get_full_name() or u.username).strip(),
+            "pending": u.id in pending_pairs,
+        })
+    return Response(results)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def contact_request_create(request):
+    to_user_id = request.data.get("to_user")
+    if not to_user_id:
+        return Response({"detail": "to_user is required"}, status=status.HTTP_400_BAD_REQUEST)
+    if int(to_user_id) == request.user.id:
+        return Response({"detail": "Cannot add yourself."}, status=status.HTTP_400_BAD_REQUEST)
+    try:
+        to_user = User.objects.get(pk=to_user_id)
+    except User.DoesNotExist:
+        return Response({"detail": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    existing = ContactRequest.objects.filter(
+        models.Q(from_user=request.user, to_user=to_user)
+        | models.Q(from_user=to_user, to_user=request.user)
+    ).exclude(status='rejected')
+    if existing.exists():
+        return Response({"detail": "Request already exists or you are already contacts."}, status=status.HTTP_400_BAD_REQUEST)
+
+    req = ContactRequest.objects.create(from_user=request.user, to_user=to_user, status='pending')
+    return Response(ContactRequestSerializer(req).data, status=status.HTTP_201_CREATED)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def contact_requests(request):
+    direction = request.GET.get("direction", "incoming")
+    if direction == "incoming":
+        qs = ContactRequest.objects.filter(to_user=request.user, status='pending')
+    elif direction == "outgoing":
+        qs = ContactRequest.objects.filter(from_user=request.user, status='pending')
+    else:
+        qs = ContactRequest.objects.filter(
+            models.Q(to_user=request.user) | models.Q(from_user=request.user)
+        )
+    return Response(ContactRequestSerializer(qs.order_by('-created_at'), many=True).data)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def contact_request_accept(request, pk):
+    try:
+        req = ContactRequest.objects.get(pk=pk, to_user=request.user)
+    except ContactRequest.DoesNotExist:
+        return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+    if req.status != 'pending':
+        return Response({"detail": "Request is not pending."}, status=status.HTTP_400_BAD_REQUEST)
+    req.status = 'accepted'
+    req.save()
+    return Response(ContactRequestSerializer(req).data)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def contact_delete(request):
+    user_id = request.data.get("user_id")
+    if not user_id:
+        return Response({"detail": "user_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+    try:
+        target = User.objects.get(pk=user_id)
+    except User.DoesNotExist:
+        return Response({"detail": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    if user_id not in _contact_ids(request.user):
+        return Response({"detail": "User is not your contact."}, status=status.HTTP_400_BAD_REQUEST)
+
+    ContactRequest.objects.filter(
+        models.Q(from_user=request.user, to_user=target)
+        | models.Q(from_user=target, to_user=request.user)
+    ).delete()
+
+    return Response({"detail": "Contact deleted."})
 from rest_framework import status
 
 import logging
 logger = logging.getLogger(__name__)
+from itertools import combinations
 
 def _log_activity(action, expense, actor, splits_data, participants_ids, payer_id):
     try:
@@ -226,6 +357,18 @@ class ExpenseViewSet(viewsets.ModelViewSet):
             normalized[uid] = entry
         splits_data = list(normalized.values())
 
+        # Ensure all participants (except self) are contacts
+        contact_ids = _contact_ids(self.request.user)
+        for uid in participants:
+            if int(uid) != self.request.user.id and int(uid) not in contact_ids:
+                raise ValidationError("All participants must be your contacts.")
+        for split in splits_data:
+            uid = int(split['user'])
+            if uid != self.request.user.id and uid not in contact_ids:
+                raise ValidationError("All participants must be your contacts.")
+        if payer_id != self.request.user.id and payer_id not in contact_ids:
+            raise ValidationError("Paid By must be you or one of your contacts.")
+
         # Ensure participants include payer, request user, and all split users
         participants_ids = set(int(p) for p in participants)
         participants_ids.add(payer_id)
@@ -233,6 +376,25 @@ class ExpenseViewSet(viewsets.ModelViewSet):
         for split in splits_data:
             participants_ids.add(int(split['user']))
         participants = list(participants_ids)
+
+        # Ensure all participants have mutual contact relationships
+        if len(participants) > 1:
+            participants_users = User.objects.filter(id__in=participants_ids)
+            name_map = {u.id: (u.get_full_name() or u.username) for u in participants_users}
+            accepted_edges = set(
+                frozenset((cr.from_user_id, cr.to_user_id))
+                for cr in ContactRequest.objects.filter(
+                    status='accepted',
+                    from_user_id__in=participants_ids,
+                    to_user_id__in=participants_ids
+                )
+            )
+            missing_pairs = []
+            for a, b in combinations(participants_ids, 2):
+                if frozenset((a, b)) not in accepted_edges:
+                    missing_pairs.append(f"{name_map.get(a, a)} and {name_map.get(b, b)}")
+            if missing_pairs:
+                raise ValidationError({"detail": f"These pairs are not contacts: {', '.join(missing_pairs)}"})
 
         # Validate splits based on the selected method
         if split_method == 'manual':
