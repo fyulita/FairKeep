@@ -457,6 +457,7 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
             }
             return next;
         });
+        setUserSearch("");
     };
 
     const handleInputFocus = (id) => {
