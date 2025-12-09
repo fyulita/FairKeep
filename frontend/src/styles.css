@@ -1158,6 +1158,11 @@ h1 {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  overflow-y: auto;
+  padding-right: 4px;
+  flex: 1;
+  min-height: 0;
+  max-height: 60vh;
 }
 
 .currency-pill {
@@ -1260,6 +1265,9 @@ h1 {
   max-width: 320px;
   width: 100%;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
 }
 .modal-card button {
   color: #000;
