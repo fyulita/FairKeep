@@ -1,4 +1,4 @@
-# FairKeep
+# <img src="./frontend/public/favicon.svg" alt="FairKeep logo" width="28" height="28" style="vertical-align: middle;" /> FairKeep
 
 Web app that lets you track and split expenses among multiple users. Backend: Django REST (Django 5 + DRF) with Postgres in production and SQLite for quick local runs. Frontend: React (Vite).
 
