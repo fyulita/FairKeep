@@ -1,6 +1,6 @@
 # FairKeep
 
-Web app to track and split expenses among multiple users. Backend: Django REST (Django 5 + DRF) with Postgres in production and SQLite for quick local runs. Frontend: React (Vite).
+Web app that lets you track and split expenses among multiple users. Backend: Django REST (Django 5 + DRF) with Postgres in production and SQLite for quick local runs. Frontend: React (Vite).
 
 ## Features
 - Split methods: equal, manual/exact, percentage, shares, full owed/owe, excess.
