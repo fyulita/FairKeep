@@ -12,6 +12,7 @@ function UserList({ currentUserId, refreshKey }) {
     const [selectUserId, setSelectUserId] = useState(null);
     const [reorderMode, setReorderMode] = useState(false);
     const [orderedIds, setOrderedIds] = useState([]);
+    const [draggingId, setDraggingId] = useState(null);
     const userName = (id) => {
         const u = users.find((x) => x.id === Number(id));
         return u ? u.display_name || u.username : `User #${id}`;
@@ -170,10 +171,18 @@ function UserList({ currentUserId, refreshKey }) {
         e.preventDefault();
         const draggedId = parseInt(e.dataTransfer.getData("text/plain"), 10);
         if (!draggedId || draggedId === id) return;
+        reorderIds(draggedId, id);
+    };
+
+    const handleReorderToggle = () => {
+        setReorderMode((prev) => !prev);
+    };
+
+    const reorderIds = (draggedId, targetId) => {
         setOrderedIds((prev) => {
             const ids = prev.filter(Boolean);
             const currentIdx = ids.indexOf(draggedId);
-            const targetIdx = ids.indexOf(id);
+            const targetIdx = ids.indexOf(targetId);
             if (currentIdx === -1 || targetIdx === -1) return prev;
             const next = [...ids];
             next.splice(currentIdx, 1);
@@ -183,14 +192,33 @@ function UserList({ currentUserId, refreshKey }) {
         });
     };
 
-    const handleReorderToggle = () => {
-        setReorderMode((prev) => !prev);
+    const handleTouchStart = (id) => {
+        if (!reorderMode) return;
+        setDraggingId(id);
+    };
+
+    const handleTouchMove = (e) => {
+        if (!reorderMode || draggingId === null) return;
+        const touch = e.touches && e.touches[0];
+        if (!touch) return;
+        const el = document.elementFromPoint(touch.clientX, touch.clientY);
+        const targetCard = el?.closest?.("[data-user-id]");
+        const targetId = targetCard ? parseInt(targetCard.getAttribute("data-user-id"), 10) : null;
+        if (targetId && targetId !== draggingId) {
+            reorderIds(draggingId, targetId);
+            e.preventDefault();
+        }
+    };
+
+    const handleTouchEnd = () => {
+        if (!reorderMode) return;
+        setDraggingId(null);
     };
 
     if (loading) return <p>Loading users...</p>;
 
     return (
-        <div className="user-list page-container">
+        <div className={`user-list page-container ${reorderMode ? "reorder-mode" : ""}`}>
             {selectUserId && (
                 <div className="modal-backdrop">
                             <div className="modal-card">
@@ -258,9 +286,13 @@ function UserList({ currentUserId, refreshKey }) {
                                 key={user.id}
                                 className="user-pill user-pill-column user-pill-link draggable-pill"
                                 draggable={reorderMode}
+                                data-user-id={user.id}
                                 onDragStart={(e) => handleDragStart(e, user.id)}
                                 onDragOver={(e) => handleDragOver(e, user.id)}
                                 onDrop={(e) => handleDrop(e, user.id)}
+                                onTouchStart={() => handleTouchStart(user.id)}
+                                onTouchMove={handleTouchMove}
+                                onTouchEnd={handleTouchEnd}
                                 onClick={(e) => {
                                     if (reorderMode) e.preventDefault();
                                 }}
