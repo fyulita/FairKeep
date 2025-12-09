@@ -161,26 +161,34 @@ LOGGING = {
     },
 }
 
-# Enable cross-site cookies
-CSRF_COOKIE_SECURE = True 
-CSRF_COOKIE_SAMESITE = 'None'  # Allows cross-site usage
+# Cookie/CORS/CSRF configuration (secure in prod, relaxed locally)
+USE_SECURE_COOKIES = os.environ.get('DJANGO_SECURE_COOKIES')
+if USE_SECURE_COOKIES is None:
+    USE_SECURE_COOKIES = not DEBUG
+else:
+    USE_SECURE_COOKIES = USE_SECURE_COOKIES.lower() in ('1', 'true', 'yes')
+
+CSRF_COOKIE_SECURE = USE_SECURE_COOKIES
+SESSION_COOKIE_SECURE = USE_SECURE_COOKIES
+CSRF_COOKIE_SAMESITE = 'None' if USE_SECURE_COOKIES else 'Lax'
+SESSION_COOKIE_SAMESITE = 'None' if USE_SECURE_COOKIES else 'Lax'
+
 default_csrf = [
     "http://localhost:5173",
     "https://localhost:5173",
+    "https://fairkeep.fyulita.xyz",
 ]
 extra_csrf = os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS', '')
 if extra_csrf:
     default_csrf.extend([x.strip() for x in extra_csrf.split(',') if x.strip()])
 CSRF_TRUSTED_ORIGINS = default_csrf
 
-SESSION_COOKIE_SECURE = True
-SESSION_COOKIE_SAMESITE = 'None'
-
 # Ensure CORS settings allow credentials
 CORS_ALLOW_CREDENTIALS = True
 default_cors = [
     "http://localhost:5173",
     "https://localhost:5173",
+    "https://fairkeep.fyulita.xyz",
 ]
 extra_cors = os.environ.get('DJANGO_CORS_ORIGINS', '')
 if extra_cors:

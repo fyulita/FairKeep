@@ -22,6 +22,7 @@ const UserProfile = ({ logout }) => {
     const [exporting, setExporting] = useState(false);
     const [exportMessage, setExportMessage] = useState("");
     const [photoData, setPhotoData] = useState("");
+    const [pendingPhotoData, setPendingPhotoData] = useState(null);
     const [photoMessage, setPhotoMessage] = useState("");
     const [photoZoom, setPhotoZoom] = useState(1);
     const [photoOffsetX, setPhotoOffsetX] = useState(0);
@@ -29,13 +30,14 @@ const UserProfile = ({ logout }) => {
     const [cropModalOpen, setCropModalOpen] = useState(false);
     const [cropImage, setCropImage] = useState("");
     const [cropZoom, setCropZoom] = useState(1);
+    const [minZoom, setMinZoom] = useState(0.3);
     const [cropOffset, setCropOffset] = useState({ x: 0, y: 0 });
     const [cropDragging, setCropDragging] = useState(false);
     const [dragStart, setDragStart] = useState(null);
+    const [pinchBase, setPinchBase] = useState(null);
+    const [pointers, setPointers] = useState({});
     const [confirmLogout, setConfirmLogout] = useState(false);
     const navigate = useNavigate();
-    const photoKey = (id) => `profilePhoto:${id || "default"}`;
-    const photoConfigKey = (id) => `profilePhotoConfig:${id || "default"}`;
 
     useEffect(() => {
         const fetchUser = async () => {
@@ -45,19 +47,16 @@ const UserProfile = ({ logout }) => {
                     const id = session.data.id;
                     setUserId(id);
                     setUsername(session.data.username || "");
-                    const stored = localStorage.getItem(photoKey(id));
-                    if (stored) setPhotoData(stored);
-                    const storedCfg = localStorage.getItem(photoConfigKey(id));
-                    if (storedCfg) {
-                        try {
-                            const cfg = JSON.parse(storedCfg);
-                            if (typeof cfg.zoom === "number") setPhotoZoom(cfg.zoom);
-                            if (typeof cfg.offsetX === "number") setPhotoOffsetX(cfg.offsetX);
-                            if (typeof cfg.offsetY === "number") setPhotoOffsetY(cfg.offsetY);
-                        } catch {
-                            /* ignore */
-                        }
+                    try {
+                        const avatarRes = await api.get("avatar/");
+                        if (avatarRes.data?.avatar) setPhotoData(avatarRes.data.avatar);
+                        setPhotoZoom(1);
+                        setPhotoOffsetX(0);
+                        setPhotoOffsetY(0);
+                    } catch {
+                        /* ignore avatar fetch errors */
                     }
+                    setPendingPhotoData(null);
                     let first = "";
                     let last = "";
                     try {
@@ -92,16 +91,20 @@ const UserProfile = ({ logout }) => {
                 last_name: lastName,
                 display_name,
             });
-            if (photoData) {
-                localStorage.setItem(photoKey(userId), photoData);
-            } else {
-                localStorage.removeItem(photoKey(userId));
+            const finalPhoto = pendingPhotoData !== null ? pendingPhotoData : photoData;
+            const finalConfig = { zoom: photoZoom, offsetX: photoOffsetX, offsetY: photoOffsetY };
+            if (finalPhoto) {
+                try {
+                    await api.patch("avatar/", { avatar: finalPhoto });
+                } catch (err) {
+                    console.error("Failed to save avatar", err);
+                }
             }
-            localStorage.setItem(photoConfigKey(userId), JSON.stringify({
-                zoom: photoZoom,
-                offsetX: photoOffsetX,
-                offsetY: photoOffsetY,
-            }));
+            setPhotoData(finalPhoto || "");
+            setPhotoZoom(finalConfig.zoom || 1);
+            setPhotoOffsetX(finalConfig.offsetX || 0);
+            setPhotoOffsetY(finalConfig.offsetY || 0);
+            setPendingPhotoData(null);
             setDisplayName(display_name || username);
             setMessage("Updated successfully.");
         } catch (err) {
@@ -191,6 +194,7 @@ const UserProfile = ({ logout }) => {
             const img = new Image();
             img.onload = () => {
                 const fitScale = Math.min(1, Math.min(CROP_SIZE / img.width, CROP_SIZE / img.height));
+                setMinZoom(fitScale || 1);
                 setCropZoom(fitScale || 1);
                 setCropOffset({ x: 0, y: 0 });
                 setCropModalOpen(true);
@@ -201,37 +205,77 @@ const UserProfile = ({ logout }) => {
     };
 
     const removePhoto = () => {
-        setPhotoData("");
+        setPendingPhotoData("");
         setPhotoMessage("Photo cleared. Save to apply.");
-        setPhotoZoom(1);
-        setPhotoOffsetX(0);
-        setPhotoOffsetY(0);
         setTimeout(() => setPhotoMessage(""), 4000);
     };
 
-    const avatarSrc = photoData || "/images/default_user.jpg";
-    const avatarTransform = {
+    const avatarSrcSaved = photoData || "/images/default_user.jpg";
+    const avatarTransformSaved = {
         transform: `translate(${photoOffsetX}px, ${photoOffsetY}px) scale(${photoZoom})`,
     };
+    const previewPhoto = pendingPhotoData !== null
+        ? (pendingPhotoData === "" ? "/images/default_user.jpg" : pendingPhotoData)
+        : avatarSrcSaved;
+    const previewTransform = pendingPhotoData !== null ? { transform: "none" } : avatarTransformSaved;
 
     const onCropPointerDown = (e) => {
         e.preventDefault();
-        setCropDragging(true);
-        setDragStart({ x: e.clientX, y: e.clientY });
+        e.currentTarget.setPointerCapture?.(e.pointerId);
+        setPointers((prev) => ({ ...prev, [e.pointerId]: { x: e.clientX, y: e.clientY } }));
+        if (Object.keys(pointers).length + 1 === 1) {
+            setCropDragging(true);
+            setDragStart({ x: e.clientX, y: e.clientY });
+        } else if (Object.keys(pointers).length + 1 >= 2) {
+            setPinchBase({
+                distance: null,
+                zoom: cropZoom,
+            });
+            setCropDragging(false);
+            setDragStart(null);
+        }
     };
 
     const onCropPointerMove = (e) => {
-        if (!cropDragging || !dragStart) return;
+        if (!(e.pointerId in pointers)) return;
         e.preventDefault();
-        const dx = e.clientX - dragStart.x;
-        const dy = e.clientY - dragStart.y;
-        setCropOffset((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
-        setDragStart({ x: e.clientX, y: e.clientY });
+        setPointers((prev) => {
+            const next = { ...prev, [e.pointerId]: { x: e.clientX, y: e.clientY } };
+            const ids = Object.keys(next);
+            if (ids.length >= 2) {
+                const [aId, bId] = ids;
+                const a = next[aId];
+                const b = next[bId];
+                const dist = Math.hypot(a.x - b.x, a.y - b.y);
+                setCropDragging(false);
+                setDragStart(null);
+                setPinchBase((base) => {
+                    const initial = base?.distance || dist;
+                    const scale = dist / initial;
+                    const newZoom = Math.min(3, Math.max(minZoom, (base?.zoom || cropZoom) * scale));
+                    setCropZoom(newZoom);
+                    return { distance: initial, zoom: base?.zoom || cropZoom };
+                });
+            } else if (cropDragging && dragStart) {
+                const dx = e.clientX - dragStart.x;
+                const dy = e.clientY - dragStart.y;
+                setCropOffset((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
+                setDragStart({ x: e.clientX, y: e.clientY });
+            }
+            return next;
+        });
     };
 
-    const onCropPointerUp = () => {
+    const onCropPointerUp = (e) => {
+        e.preventDefault();
+        setPointers((prev) => {
+            const next = { ...prev };
+            delete next[e.pointerId];
+            return next;
+        });
         setCropDragging(false);
         setDragStart(null);
+        setPinchBase(null);
     };
 
     const handleCropDone = () => {
@@ -267,10 +311,7 @@ const UserProfile = ({ logout }) => {
             ctx.drawImage(img, dx, dy, drawW, drawH);
             ctx.restore();
             const dataUrl = canvas.toDataURL("image/png");
-            setPhotoData(dataUrl);
-            setPhotoZoom(1);
-            setPhotoOffsetX(0);
-            setPhotoOffsetY(0);
+            setPendingPhotoData(dataUrl);
             setCropModalOpen(false);
             setPhotoMessage("Preview updated. Save to keep it.");
             setTimeout(() => setPhotoMessage(""), 4000);
@@ -312,18 +353,20 @@ const UserProfile = ({ logout }) => {
         <div className="profile-section">
             <h3>Personal Info</h3>
             <div className="profile-form profile-section">
-                <div className="avatar-row">
-                    <div className="avatar-frame">
-                        <img src={avatarSrc} alt="Profile" className="profile-avatar" style={avatarTransform} />
+                <div className="avatar-block">
+                    <div className="avatar-row">
+                        <div className="avatar-frame">
+                            <img src={previewPhoto} alt="" className="profile-avatar" style={previewTransform} />
+                        </div>
+                        <div className="avatar-actions">
+                            <label className="secondary-button file-button">
+                                Change photo
+                                <input type="file" accept="image/*" onChange={onPhotoChange} />
+                            </label>
+                            <button className="secondary-button" type="button" onClick={removePhoto}>Remove photo</button>
+                        </div>
                     </div>
-                    <div className="avatar-actions">
-                        <label className="secondary-button file-button">
-                            Change photo
-                            <input type="file" accept="image/*" onChange={onPhotoChange} />
-                        </label>
-                        <button className="secondary-button" type="button" onClick={removePhoto}>Remove photo</button>
-                        {photoMessage && <p className="subtle status-message">{photoMessage}</p>}
-                    </div>
+                    {photoMessage && <p className="subtle status-message">{photoMessage}</p>}
                 </div>
                 <div className="form-row">
                     <label>First name</label>
@@ -405,7 +448,7 @@ const UserProfile = ({ logout }) => {
         <div className="profile-card full-height-card page-container profile-page">
             <div className="profile-header">
                 <div className="avatar-frame large">
-                    <img src={avatarSrc} alt="Profile" className="profile-avatar" style={avatarTransform} />
+                    <img src={avatarSrcSaved} alt="Profile" className="profile-avatar" style={avatarTransformSaved} />
                 </div>
                 <div className="profile-identity">
                     <h2>{displayName || "Your name"}</h2>
@@ -455,6 +498,13 @@ const UserProfile = ({ logout }) => {
                             onPointerMove={onCropPointerMove}
                             onPointerUp={onCropPointerUp}
                             onPointerLeave={onCropPointerUp}
+                            onWheel={(e) => {
+                                e.preventDefault();
+                                const delta = -e.deltaY;
+                                const factor = delta > 0 ? 1.05 : 0.95;
+                                const next = Math.min(3, Math.max(minZoom, cropZoom * factor));
+                                setCropZoom(next);
+                            }}
                         >
                             {cropImage && (
                                 <img
@@ -471,20 +521,7 @@ const UserProfile = ({ logout }) => {
                             )}
                             <div className="crop-mask" />
                         </div>
-                        <div className="avatar-sliders">
-                            <label>
-                                Zoom
-                                <input
-                                    type="range"
-                                    min="0.3"
-                                    max="3"
-                                    step="0.02"
-                                    value={cropZoom}
-                                    onChange={(e) => setCropZoom(parseFloat(e.target.value))}
-                                />
-                            </label>
-                            <p className="subtle small">Drag the image to center it in the circle.</p>
-                        </div>
+                        <p className="subtle small">Drag to move. Pinch with two fingers to zoom.</p>
                         <div className="form-actions">
                             <button className="secondary-button" onClick={() => setCropModalOpen(false)}>Cancel</button>
                             <button className="primary-button" onClick={handleCropDone}>Done</button>

@@ -716,11 +716,19 @@ h1 {
   flex-direction: column;
   align-items: center;
   gap: 18px;
+  width: min(720px, 100%);
+  margin: 0 auto;
 }
 
 .profile-section {
   width: 100%;
   max-width: 520px;
+  margin-left: auto;
+  margin-right: auto;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .full-height-card {
@@ -777,12 +785,14 @@ h1 {
 }
 .profile-tabs {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   margin: 12px 0 8px 0;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  justify-content: center;
+  overflow-x: auto;
 }
 .tab-button {
-  padding: 10px 14px;
+  padding: 8px 12px;
   border-radius: 8px;
   border: 1px solid var(--card-border);
   background: #fff;
@@ -802,12 +812,14 @@ h1 {
   gap: 14px;
 }
 .avatar-row {
-  display: flex;
-  gap: 14px;
+  display: grid;
+  grid-template-columns: auto auto;
+  column-gap: 14px;
+  row-gap: 8px;
   align-items: center;
-  margin-bottom: 12px;
-  flex-wrap: wrap;
   justify-content: center;
+  width: 100%;
+  margin-bottom: 12px;
 }
 .avatar-frame {
   --avatar-border: 2px;
@@ -842,6 +854,13 @@ h1 {
   flex-direction: column;
   gap: 8px;
   align-items: center;
+}
+.avatar-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
 }
 .file-button input {
   display: none;

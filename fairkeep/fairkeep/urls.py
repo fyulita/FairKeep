@@ -30,6 +30,7 @@ from expenses.views import (
     user_detail,
     change_password,
     export_expenses,
+    avatar_view,
     contacts_list,
     contact_search,
     contact_request_create,
@@ -61,4 +62,5 @@ urlpatterns = [
     path('api/contacts/requests/create/', contact_request_create, name='contact_request_create'),
     path('api/contacts/requests/<int:pk>/accept/', contact_request_accept, name='contact_request_accept'),
     path('api/contacts/delete/', contact_delete, name='contact_delete'),
+    path('api/avatar/', avatar_view, name='avatar_view'),
 ]

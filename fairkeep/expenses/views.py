@@ -17,7 +17,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.exceptions import ValidationError
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
-from .models import Expense, ExpenseSplit, Activity, ContactRequest
+from .models import Expense, ExpenseSplit, Activity, ContactRequest, UserAvatar
 from .serializers import ExpenseSerializer, ActivitySerializer, ContactRequestSerializer, UserPublicSerializer
 import csv
 
@@ -290,6 +290,21 @@ def contact_delete(request):
     ).delete()
 
     return Response({"detail": "Contact deleted."})
+
+
+@api_view(['GET', 'PATCH'])
+@permission_classes([IsAuthenticated])
+def avatar_view(request):
+    user = request.user
+    if request.method == 'GET':
+        obj = UserAvatar.objects.filter(user=user).first()
+        return Response({"avatar": obj.data if obj else ""})
+    if request.method == 'PATCH':
+        data = request.data.get("avatar", "")
+        obj, _created = UserAvatar.objects.get_or_create(user=user)
+        obj.data = data or ""
+        obj.save()
+        return Response({"avatar": obj.data})
 from rest_framework import status
 
 import logging

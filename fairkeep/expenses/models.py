@@ -121,3 +121,11 @@ class ContactRequest(models.Model):
         for req in accepted:
             contact_ids.add(req.from_user_id if req.to_user_id == user.id else req.to_user_id)
         return contact_ids
+
+
+class UserAvatar(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='avatar')
+    data = models.TextField(blank=True, default='')
+
+    def __str__(self):
+        return f"Avatar for {self.user.username}"
