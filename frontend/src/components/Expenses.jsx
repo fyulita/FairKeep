@@ -138,7 +138,7 @@ function Expenses({ refreshKey, filterUserId, currentUserId, onlyCurrentUser = f
                                         {paidByYou
                                             ? `You paid ${formatCurrency(expense.currency, expense.amount)}`
                                             : `${payerLabel} paid ${formatCurrency(expense.currency, expense.amount)}`
-                                        } • {fullDate}
+                                        }
                                     </div>
                                 </div>
                                 <div className="expense-amount">
