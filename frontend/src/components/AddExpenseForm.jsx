@@ -702,12 +702,13 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
                         <label>Category</label>
                         <select value={category} onChange={(e) => setCategory(e.target.value)} required>
                             <option value="">Select Category</option>
-                            <option value="Home Supplies">Home Supplies</option>
-                            <option value="Food">Food</option>
-                            <option value="Transport">Transport</option>
                             <option value="Entertainment">Entertainment</option>
-                            <option value="Periodic Expenses">Periodic Expenses</option>
+                            <option value="Food">Food</option>
+                            <option value="Health">Health</option>
+                            <option value="Home Supplies">Home Supplies</option>
                             <option value="Other">Other</option>
+                            <option value="Periodic Expenses">Periodic Expenses</option>
+                            <option value="Transport">Transport</option>
                         </select>
                     </div>
                     <div>

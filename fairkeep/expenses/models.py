@@ -11,6 +11,7 @@ class Expense(models.Model):
         ('Transport', 'Transport'),
         ('Entertainment', 'Entertainment'),
         ('Periodic Expenses', 'Periodic Expenses'),
+        ('Health', 'Health'),
         ('Other', 'Other'),
     ]
 
