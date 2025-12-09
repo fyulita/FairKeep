@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/axiosConfig";
 
-const Contacts = () => {
+const Contacts = ({ embedded = false }) => {
     const [search, setSearch] = useState("");
     const [results, setResults] = useState([]);
     const [contacts, setContacts] = useState([]);
@@ -88,9 +88,11 @@ const Contacts = () => {
         }
     };
 
+    const containerClass = embedded ? "embedded-contacts add-expense-screen" : "page-container add-expense-screen";
+
     return (
-        <div className="page-container add-expense-screen">
-            <h2 className="add-expense-title">Contacts</h2>
+        <div className={containerClass}>
+            {!embedded && <h2 className="add-expense-title">Contacts</h2>}
             <p className="subtle">Search by username or full name to send a contact request.</p>
             <div className="search-row">
                 <input
@@ -172,9 +174,11 @@ const Contacts = () => {
 
             {message && <p className="subtle status-message">{message}</p>}
 
-            <div className="form-actions">
-                <button className="secondary-button" onClick={() => navigate(-1)}>Back</button>
-            </div>
+            {!embedded && (
+                <div className="form-actions">
+                    <button className="secondary-button" onClick={() => navigate(-1)}>Back</button>
+                </div>
+            )}
 
             {deleteTarget && (
                 <div className="modal-backdrop">
