@@ -10,6 +10,8 @@ function UserList({ currentUserId, refreshKey }) {
     const [confirmUserId, setConfirmUserId] = useState(null);
     const [confirmCurrency, setConfirmCurrency] = useState(null);
     const [selectUserId, setSelectUserId] = useState(null);
+    const [reorderMode, setReorderMode] = useState(false);
+    const [orderedIds, setOrderedIds] = useState([]);
     const userName = (id) => {
         const u = users.find((x) => x.id === Number(id));
         return u ? u.display_name || u.username : `User #${id}`;
@@ -120,8 +122,6 @@ function UserList({ currentUserId, refreshKey }) {
         setConfirmCurrency(null);
     };
 
-    if (loading) return <p>Loading users...</p>;
-
     const nonZeroUsers = sharedUsers.filter((u) => {
         const items = balances[u.id] || [];
         return items.some((b) => (b.amount || 0) !== 0);
@@ -130,6 +130,64 @@ function UserList({ currentUserId, refreshKey }) {
         const items = balances[u.id] || [];
         return items.every((b) => (b.amount || 0) === 0);
     });
+
+    // Maintain custom order for non-zero users
+    useEffect(() => {
+        const stored = localStorage.getItem("balanceOrder");
+        let initial = [];
+        if (stored) {
+            try {
+                initial = JSON.parse(stored);
+            } catch {
+                initial = [];
+            }
+        }
+        const existingIds = nonZeroUsers.map((u) => u.id);
+        const merged = [
+            ...initial.filter((id) => existingIds.includes(id)),
+            ...existingIds.filter((id) => !initial.includes(id)),
+        ];
+        setOrderedIds(merged);
+    }, [nonZeroUsers]);
+
+    const orderedUsers = useMemo(() => {
+        if (!orderedIds.length) return nonZeroUsers;
+        const map = new Map(nonZeroUsers.map((u) => [u.id, u]));
+        return orderedIds.map((id) => map.get(id)).filter(Boolean);
+    }, [orderedIds, nonZeroUsers]);
+
+    const handleDragStart = (e, id) => {
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", String(id));
+    };
+
+    const handleDragOver = (e, id) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+    };
+
+    const handleDrop = (e, id) => {
+        e.preventDefault();
+        const draggedId = parseInt(e.dataTransfer.getData("text/plain"), 10);
+        if (!draggedId || draggedId === id) return;
+        setOrderedIds((prev) => {
+            const ids = prev.filter(Boolean);
+            const currentIdx = ids.indexOf(draggedId);
+            const targetIdx = ids.indexOf(id);
+            if (currentIdx === -1 || targetIdx === -1) return prev;
+            const next = [...ids];
+            next.splice(currentIdx, 1);
+            next.splice(targetIdx, 0, draggedId);
+            localStorage.setItem("balanceOrder", JSON.stringify(next));
+            return next;
+        });
+    };
+
+    const handleReorderToggle = () => {
+        setReorderMode((prev) => !prev);
+    };
+
+    if (loading) return <p>Loading users...</p>;
 
     return (
         <div className="user-list page-container">
@@ -176,37 +234,73 @@ function UserList({ currentUserId, refreshKey }) {
             ) : (
                 <>
                 <div className="user-list-items">
-                    {nonZeroUsers.map((user) => {
+                    {orderedUsers.map((user) => {
                         const userBalances = balances[user.id] || [];
+                        const pill = (
+                            <div className="user-pill-header">
+                                <span className="user-pill-name">{user.display_name || user.username}</span>
+                                {!reorderMode && (
+                                    <button
+                                        className="secondary-button"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            settleUp(user.id);
+                                        }}
+                                    >
+                                        Settle
+                                    </button>
+                                )}
+                                {reorderMode && <div className="drag-handle" aria-label="Drag to reorder">☰</div>}
+                            </div>
+                        );
                         return (
-                            <Link key={user.id} to={`/with/${user.id}`} className="user-pill user-pill-column user-pill-link">
-                                <div className="user-pill-header">
-                                        <span className="user-pill-name">{user.display_name || user.username}</span>
-                                        <button
-                                            className="secondary-button"
-                                            onClick={(e) => {
-                                                e.preventDefault();
-                                                settleUp(user.id);
-                                            }}
-                                        >
-                                            Settle
-                                        </button>
-                                    </div>
-                                    <div className="user-balance-lines">
-                                        {userBalances.map((b, idx) => (
-                                            (b.amount || 0) !== 0 && (
-                                                <div
-                                                    key={idx}
-                                                    className={(b.amount || 0) >= 0 ? "balance-line positive" : "balance-line negative"}
-                                                >
-                                                    {(b.amount || 0) >= 0 ? "Owes you" : "You owe"} {`${currencyLabel(b.currency)}${Math.abs(b.amount || 0).toFixed(2)}`}
-                                                </div>
-                                            )
-                                        ))}
-                                    </div>
-                                </Link>
-                            );
-                        })}
+                            <div
+                                key={user.id}
+                                className="user-pill user-pill-column user-pill-link draggable-pill"
+                                draggable={reorderMode}
+                                onDragStart={(e) => handleDragStart(e, user.id)}
+                                onDragOver={(e) => handleDragOver(e, user.id)}
+                                onDrop={(e) => handleDrop(e, user.id)}
+                                onClick={(e) => {
+                                    if (reorderMode) e.preventDefault();
+                                }}
+                            >
+                                {!reorderMode ? (
+                                    <Link to={`/with/${user.id}`} className="user-pill-link full-height-link">
+                                        {pill}
+                                        <div className="user-balance-lines">
+                                            {userBalances.map((b, idx) => (
+                                                (b.amount || 0) !== 0 && (
+                                                    <div
+                                                        key={idx}
+                                                        className={(b.amount || 0) >= 0 ? "balance-line positive" : "balance-line negative"}
+                                                    >
+                                                        {(b.amount || 0) >= 0 ? "Owes you" : "You owe"} {`${currencyLabel(b.currency)}${Math.abs(b.amount || 0).toFixed(2)}`}
+                                                    </div>
+                                                )
+                                            ))}
+                                        </div>
+                                    </Link>
+                                ) : (
+                                    <>
+                                        {pill}
+                                        <div className="user-balance-lines">
+                                            {userBalances.map((b, idx) => (
+                                                (b.amount || 0) !== 0 && (
+                                                    <div
+                                                        key={idx}
+                                                        className={(b.amount || 0) >= 0 ? "balance-line positive" : "balance-line negative"}
+                                                    >
+                                                        {(b.amount || 0) >= 0 ? "Owes you" : "You owe"} {`${currencyLabel(b.currency)}${Math.abs(b.amount || 0).toFixed(2)}`}
+                                                    </div>
+                                                )
+                                            ))}
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        );
+                    })}
                     </div>
                     {zeroUsers.length > 0 && (
                         <details className="settled-users">
@@ -221,6 +315,11 @@ function UserList({ currentUserId, refreshKey }) {
                             </div>
                         </details>
                     )}
+                    <div className="form-actions">
+                        <button className="secondary-button" onClick={handleReorderToggle}>
+                            {reorderMode ? "Done" : "Reorder"}
+                        </button>
+                    </div>
                 </>
             )}
         </div>

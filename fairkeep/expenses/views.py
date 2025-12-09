@@ -652,12 +652,13 @@ def settle_up(request):
     except User.DoesNotExist:
         return Response({"error": "user not found"}, status=404)
 
-    # Compute net balance between current_user and target_user
+    # Compute net balance between current_user and target_user (mirror balances endpoint logic)
     expenses = Expense.objects.filter(
-        expensesplit__user=current_user
+        currency=currency
     ).filter(
-        expensesplit__user=target_user
-    ).filter(currency=currency).exclude(split_method__in=['full_owed', 'full_owe']).exclude(name__startswith="Settle with ").prefetch_related('expensesplit_set__user', 'paid_by').distinct()
+        models.Q(participants=current_user)
+        | models.Q(expensesplit__user=current_user)
+    ).prefetch_related('expensesplit_set__user', 'paid_by').distinct()
 
     net = Decimal('0')
     for expense in expenses:
@@ -672,19 +673,17 @@ def settle_up(request):
             entry["owed"] += Decimal(str(s.owed_amount))
             entry["paid"] += Decimal(str(s.paid_amount))
 
-        if current_user.id not in split_totals or target_user.id not in split_totals:
-            continue
-
-        my_entry = split_totals.get(current_user.id, {"owed": Decimal('0'), "paid": Decimal('0')})
-        other_entry = split_totals.get(target_user.id, {"owed": Decimal('0'), "paid": Decimal('0')})
-
         payer_id = expense.paid_by_id
         if payer_id == current_user.id:
-            # target owes current user
-            net += other_entry["owed"]
+            other_entry = split_totals.get(target_user.id)
+            if other_entry:
+                # target owes current user
+                net += other_entry["owed"]
         elif payer_id == target_user.id:
-            # current user owes target
-            net -= my_entry["owed"]
+            my_entry = split_totals.get(current_user.id)
+            if my_entry:
+                # current user owes target
+                net -= my_entry["owed"]
         else:
             # third-party payer: no net between these two
             continue
