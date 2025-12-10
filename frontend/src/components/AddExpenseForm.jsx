@@ -335,8 +335,7 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
                     paid_amount: amountNumber.toFixed(2),
                 },
             ];
-            // Force a split method for backend validation
-            setSplitMethod((prev) => prev || "equal");
+            setSplitMethod("personal");
         }
 
         const payload = {
@@ -345,7 +344,7 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
             amount: parseFloat(amount).toFixed(2), // Ensure proper formatting
             expense_date: expenseDate,
             paid_by: paidByOverride !== null ? paidByOverride : payerId,
-            split_method: splitMethod || "equal",
+            split_method: uniqueParticipants.length === 1 ? "personal" : (splitMethod || "equal"),
             participants: uniqueParticipants,
             currency,
             splits: payloadSplits,
@@ -412,6 +411,14 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
             return <p>{descriptions[splitMethod]}</p>;
         }
 
+        const displayNameFor = (id) => {
+            if (id === loggedUser?.id) {
+                return loggedUser.display_name || loggedUser.username || "You";
+            }
+            const u = users.find((user) => user.id === id);
+            return u?.display_name || u?.username || "Unknown";
+        };
+
         return (
             <div>
                 <p>{descriptions[splitMethod]}</p>
@@ -423,7 +430,7 @@ const AddExpenseForm = ({ onSuccess, onCancel, expenseId = null, initialData = n
                     return (
                         <div key={id} className="split-row">
                             <label>
-                                {users.find((user) => user.id === id)?.display_name || users.find((user) => user.id === id)?.username || "Unknown"}:
+                                {displayNameFor(id)}:
                             </label>
                             <div className="split-input-wrap">
                                 <input

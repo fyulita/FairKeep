@@ -411,7 +411,14 @@ class ExpenseViewSet(viewsets.ModelViewSet):
             if missing_pairs:
                 raise ValidationError({"detail": f"These pairs are not contacts: {', '.join(missing_pairs)}"})
 
+        # Personal expense (only self)
+        if len(participants) == 1:
+            split_method = 'personal'
+
         # Validate splits based on the selected method
+        if len(participants) == 1:
+            split_method = 'personal'
+
         if split_method == 'manual':
             total_owed = sum(Decimal(str(split['owed_amount'])) for split in splits_data)
             if total_owed != total_amount:
@@ -433,6 +440,21 @@ class ExpenseViewSet(viewsets.ModelViewSet):
                 raise ValidationError("Participants count must match splits count for equal split.")
             for split in splits_data:
                 split['owed_amount'] = (total_amount / Decimal(len(participants))).quantize(Decimal('0.01'))
+        elif split_method == 'personal':
+            if len(participants) != 1 or len(splits_data) == 0:
+                raise ValidationError("Personal expenses must have exactly one participant.")
+            split = splits_data[0]
+            split['owed_amount'] = total_amount
+            split['paid_amount'] = total_amount
+            splits_data = [split]
+
+        elif split_method == 'personal':
+            if len(participants) != 1 or len(splits_data) == 0:
+                raise ValidationError("Personal expenses must have exactly one participant.")
+            split = splits_data[0]
+            split['owed_amount'] = total_amount
+            split['paid_amount'] = total_amount
+            splits_data = [split]
 
         elif split_method == 'shares':
             total_shares = Decimal(sum(Decimal(str(split['value'])) for split in splits_data))

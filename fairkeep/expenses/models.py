@@ -17,6 +17,7 @@ class Expense(models.Model):
 
     SPLIT_METHODS = [
         ('equal', 'Split Equally'),
+        ('personal', 'Personal'),
         ('manual', 'Manual Amount Entry'),
         ('percentage', 'Percentage-Based'),
         ('ratio', 'Ratio-Based'),
