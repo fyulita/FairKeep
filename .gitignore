@@ -33,3 +33,4 @@ frontend/dist/
 *.log
 docker-compose.yml
 todo.md
+db_data
