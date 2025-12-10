@@ -2,8 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../api/axiosConfig";
 
-const monthKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-
 function MySpending({ currentUserId }) {
     const [expenses, setExpenses] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -28,7 +26,8 @@ function MySpending({ currentUserId }) {
     }, []);
 
     const today = new Date();
-    const currentKey = monthKey(today);
+    const cutoff = new Date();
+    cutoff.setDate(today.getDate() - 30);
 
     const stats = useMemo(() => {
         let gross = 0;
@@ -42,9 +41,9 @@ function MySpending({ currentUserId }) {
 
         expenses.forEach((exp) => {
             if (!exp.participants || !exp.expense_date) return;
-            const [y, m, d] = exp.expense_date.split("-");
-            const key = `${y}-${m}`;
-            if (key !== currentKey) return;
+            const expDate = new Date(exp.expense_date);
+            if (Number.isNaN(expDate.getTime())) return;
+            if (expDate < cutoff) return;
 
             const splits = exp.splits || [];
             const userSplit = splits.find((s) => Number(s.user) === Number(currentUserId));
@@ -88,7 +87,7 @@ function MySpending({ currentUserId }) {
             personalList,
             sharedMap,
         };
-    }, [expenses, currentKey, currentUserId]);
+    }, [expenses, cutoff, currentUserId]);
 
     const currencyLabel = (code) => {
         const map = { ARS: "$", UYU: "$", CLP: "$", MXN: "$", BRL: "R$", USD: "$", EUR: "€", GBP: "£", JPY: "¥", PYG: "₲", AUD: "A$", KRW: "₩" };
@@ -118,7 +117,7 @@ function MySpending({ currentUserId }) {
     return (
         <div className="page-container spending-container">
             <h2 className="page-title">My Spending</h2>
-            <p className="subtle center-text">Current month overview</p>
+            <p className="subtle center-text">Last 30 days overview</p>
 
             <div className="summary-cards">
                 <div className="summary-card">
@@ -136,12 +135,12 @@ function MySpending({ currentUserId }) {
                 <Link to="/personal-expenses" className="summary-card link-card">
                     <p className="label">Personal spend</p>
                     <p className="value">{formatMoney(currentCurrency, stats.personalGross)}</p>
-                    <p className="hint">{stats.personalCount} personal expenses</p>
+                    <p className="hint">{stats.personalCount} personal expenses (last 30 days)</p>
                 </Link>
                 <Link to="/shared-expenses" className="summary-card link-card">
                     <p className="label">Shared spend</p>
                     <p className="value">{formatMoney(currentCurrency, stats.sharedGross)}</p>
-                    <p className="hint">{stats.sharedCount} shared expenses</p>
+                    <p className="hint">{stats.sharedCount} shared expenses (last 30 days)</p>
                 </Link>
             </div>
 
