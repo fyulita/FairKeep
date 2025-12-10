@@ -12,6 +12,7 @@ import AddExpenseForm from "./components/AddExpenseForm";
 import BottomNav from "./components/BottomNav";
 import UserProfile from "./components/UserProfile";
 import Contacts from "./components/Contacts";
+import MySpending from "./components/MySpending";
 import './styles.css';
 
 function App() {
@@ -79,10 +80,36 @@ function App() {
                         }
                     />
                     <Route
-                        path="/add-expense"
-                        element={
-                            <AddExpenseForm
-                                onSuccess={() => {
+                    path="/spending"
+                    element={<MySpending currentUserId={currentUser?.id} />}
+                />
+                <Route
+                    path="/personal-expenses"
+                    element={
+                        <Expenses
+                            title="Personal Expenses"
+                            refreshKey={expensesVersion}
+                            currentUserId={currentUser?.id}
+                            personalOnly
+                        />
+                    }
+                />
+                <Route
+                    path="/shared-expenses"
+                    element={
+                        <Expenses
+                            title="Shared Expenses"
+                            refreshKey={expensesVersion}
+                            currentUserId={currentUser?.id}
+                            sharedOnly
+                        />
+                    }
+                />
+                <Route
+                    path="/add-expense"
+                    element={
+                        <AddExpenseForm
+                            onSuccess={() => {
                                     setExpensesVersion((v) => v + 1);
                                     navigate("/");
                                 }}

@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import api from "../api/axiosConfig";
 
-function Expenses({ refreshKey, filterUserId, currentUserId, onlyCurrentUser = false, title = "Expenses" }) {
+function Expenses({ refreshKey, filterUserId, currentUserId, onlyCurrentUser = false, personalOnly = false, sharedOnly = false, title = "Expenses" }) {
     const [expenses, setExpenses] = useState([]);
     const currencySymbol = (code) => {
         const map = {
@@ -56,6 +56,16 @@ function Expenses({ refreshKey, filterUserId, currentUserId, onlyCurrentUser = f
         return [...expenses]
             .filter((expense) => {
                 const participants = expense.participants || [];
+                const isPersonal = expense.split_method === "personal" || participants.length === 1;
+
+                if (personalOnly) {
+                    return isPersonal && (me === null || participants.includes(me));
+                }
+
+                if (sharedOnly) {
+                    const involvesMe = me === null || participants.includes(me);
+                    return !isPersonal && involvesMe;
+                }
 
                 if (onlyCurrentUser && me !== null) {
                     return participants.includes(me);
@@ -71,7 +81,7 @@ function Expenses({ refreshKey, filterUserId, currentUserId, onlyCurrentUser = f
                 return true;
             })
             .sort((a, b) => getDisplayDate(b) - getDisplayDate(a));
-    }, [expenses, filterUserId, currentUserId, onlyCurrentUser]);
+    }, [expenses, filterUserId, currentUserId, onlyCurrentUser, personalOnly, sharedOnly]);
 
     return (
         <div className="page-container">

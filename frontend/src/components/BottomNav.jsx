@@ -10,6 +10,10 @@ const BottomNav = () => {
                 <span className="nav-icon" aria-hidden="true">🏠</span>
                 <span className="nav-label">Home</span>
             </Link>
+            <Link className={`bottom-nav-item ${isActive("/spending") ? "active" : ""}`} to="/spending">
+                <span className="nav-icon" aria-hidden="true">💰</span>
+                <span className="nav-label">Spending</span>
+            </Link>
             <Link className={`bottom-nav-item ${isActive("/activities") ? "active" : ""}`} to="/activities">
                 <span className="nav-icon" aria-hidden="true">🗒️</span>
                 <span className="nav-label">Activity</span>
